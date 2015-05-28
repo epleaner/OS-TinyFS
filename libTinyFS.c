@@ -1,10 +1,6 @@
 #include "tinyFS.h"
 #include "tinyFS_errno.h"
 
-int main(int argc, char *argv[]) {
-	return 0;
-}
-
 /* Makes a blank TinyFS file system of size nBytes on the file specified by ‘filename’. This function should use the emulated disk library to open the specified file, and upon success, format the file to be mountable. This includes initializing all data to 0x00, setting magic numbers, initializing and writing the superblock and inodes, etc. Must return a specified success/error code. */
 int tfs_mkfs(char *filename, int nBytes) {
 	return 0;

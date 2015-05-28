@@ -1,7 +1,15 @@
 #include "tinyFS.h"
 #include "tinyFS_errno.h"
 
+void libDiskTest();
+
 int main(int argc, char *argv[]) {
+	libDiskTest();
+	
+	return 0;
+}
+
+void libDiskTest() {
 	int disk1 = openDisk("testing/disk1.dat", 4096);
 	int disk2 = openDisk("testing/disk2.dat", 256);
 	
@@ -13,6 +21,4 @@ int main(int argc, char *argv[]) {
 	
 	closeDisk(disk1);
 	closeDisk(disk2);
-	
-	return 0;
 }

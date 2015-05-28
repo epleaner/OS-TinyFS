@@ -28,7 +28,6 @@ typedef struct diskNode {
 	struct diskNode *next;
 } DiskNode;
 
-
 /* This functions opens a regular UNIX file and designates the first nBytes of it as space for the emulated disk. nBytes should be an integral number of the block size. If nBytes > 0 and there is already a file by the given filename, that file’s contents may be overwritten. If nBytes is 0, an existing disk is opened, and should not be overwritten. There is no requirement to maintain integrity of any file content beyond nBytes. The return value is -1 on failure or a disk number on success. */
 int openDisk(char *filename, int nBytes);
 
@@ -48,6 +47,28 @@ Disk *findDisk(int diskNum);
 
 /*	For libTinyFS.c	*/
 
+
+/* The superblock contains three different pieces of information. 
+ * 1) It specifies the “magic number,” used for detecting when the disk is not of 
+ * 		the correct format.  For TinyFS, that number is 0x45, and it is to be found 
+ *		exactly on the second byte of every block.  
+ * 2) It contains the block number of 
+ *		the root inode (for directory-based file systems). 
+ * 3) It contains a pointer to the list of free blocks, or some other way to manage 
+ 		free blocks.
+ */
+
+typedef struct superBlock {
+	int magicNumber;
+	int rootBlockNum;
+	void *freeBlocks;
+} SuperBlock;
+
+typedef struct fileSystem {
+	int size;
+	Disk disk;
+	SuperBlock superblock;
+} FileSystem;
 
 /* Makes a blank TinyFS file system of size nBytes on the file specified by ‘filename’. This function should use the emulated disk library to open the specified file, and upon success, format the file to be mountable. This includes initializing all data to 0x00, setting magic numbers, initializing and writing the superblock and inodes, etc. Must return a specified success/error code. */
 int tfs_mkfs(char *filename, int nBytes);

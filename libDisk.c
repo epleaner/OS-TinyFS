@@ -6,6 +6,10 @@
 #include "tinyFS.h"
 #include "tinyFS_errno.h"
 
+DiskNode *head;
+
+int diskCount = 0;
+
 /* This functions opens a regular UNIX file and designates the first nBytes of it as 
  * space for the emulated disk. nBytes should be an integral number of the block size.
  * If nBytes > 0 and there is already a file by the given filename, that file’s contents
@@ -15,18 +19,83 @@
  */
 int openDisk(char *filename, int nBytes) {
 	int diskNum = 0;
-	FILE *disk;
-	char *permissions = "rw";
+	FILE *file;
+	Disk disk;
+	char *permissions = "r+";
 	
+	if(nBytes % BLOCKSIZE != 0) {
+		return OPENDISK_FAILURE;
+	}
+	
+	//	read-only if nBytes is 0
 	if(nBytes == 0) {
 		permissions = "r";
 	}
+
+	file = fopen(filename, permissions);
 	
-	disk = fopen(filename, permissions);
+	if(file == NULL) {
+		return OPENDISK_FAILURE;
+	}
 	
-// 	if(disk == NULL || 
+	diskNum = diskCount++;
+		
+	disk = (Disk) {
+		file,
+		diskNum,
+		nBytes,
+		1
+	};
+	
+	addDisk(disk);
 	
 	return diskNum;
+}
+
+void addDisk(Disk disk) {
+	DiskNode *curr;
+	
+	//	create head if it is null
+	if(head == NULL) {
+		head = malloc(sizeof(DiskNode));
+		*head = (DiskNode) {
+			disk,
+			NULL
+		};
+	}
+	else {
+		curr = head;
+		
+		while(curr->next != NULL) curr = curr->next;
+				
+		curr->next = malloc(sizeof(DiskNode));
+		*(curr->next) = (DiskNode) {
+			disk,
+			NULL
+		};
+	}
+}
+
+Disk *findDisk(int diskNum) {
+	DiskNode *curr = head;
+	
+	if(curr == NULL) {
+		printf("No disks made yet\n");
+		exit(-1);
+	}
+	
+	else {
+		if(curr->disk.diskNum == diskNum) return &curr->disk;
+		
+		while(curr->next != NULL) {
+			curr = curr->next;
+
+			if(curr->disk.diskNum == diskNum) return &curr->disk;
+		}
+		
+		printf("No disks found\n");
+		exit(-1);
+	}
 }
 
 /* readBlock() reads an entire block of BLOCKSIZE bytes from the open disk (identified by
@@ -39,6 +108,29 @@ int openDisk(char *filename, int nBytes) {
  * or any other failures. You must define your own error code system.
  */
 int readBlock(int disk, int bNum, void *block) {
+	Disk *diskp;
+	int byteOffset;
+	
+	diskp = findDisk(disk);
+	
+	if(!diskp->open) {
+		return READBLOCK_FAILURE;
+	}
+	
+	byteOffset = bNum * BLOCKSIZE;
+	
+	if(byteOffset + BLOCKSIZE > diskp->space) {
+		return DISK_PAST_LIMITS;
+	}
+	
+	//	seek to correct location in file
+	if(fseek(diskp->file, byteOffset, SEEK_SET) != 0) {
+		return READBLOCK_FAILURE;
+	}
+	
+	//	read from file into block buffer
+	fread(block, BLOCKSIZE, 1, diskp->file);
+	
 	return 0;
 }
 
@@ -50,6 +142,29 @@ int readBlock(int disk, int bNum, void *block) {
  * opened) or any other failures. You must define your own error code system.
 */
 int writeBlock(int disk, int bNum, void *block) {
+	Disk *diskp;
+	int byteOffset;
+	
+	diskp = findDisk(disk);
+	
+	if(!diskp->open) {
+		return WRITEBLOCK_FAILURE;
+	}
+	
+	byteOffset = bNum * BLOCKSIZE;
+	
+	if(byteOffset + BLOCKSIZE > diskp->space) {
+		return DISK_PAST_LIMITS;
+	}
+	
+	//	seek to correct location in file
+	if(fseek(diskp->file, byteOffset, SEEK_SET) != 0) {
+		return WRITEBLOCK_FAILURE;
+	}
+	
+	//	write from block buffer into file
+	fwrite(block, BLOCKSIZE, 1, diskp->file);
+
 	return 0;
 }
 
@@ -58,4 +173,15 @@ int writeBlock(int disk, int bNum, void *block) {
  * a disk should also close the underlying file, committing any buffered writes. 
  */
 void closeDisk(int disk) {
+	Disk *diskp;
+	
+	diskp = findDisk(disk);
+	
+	if(!diskp->open) {
+		return;
+	}
+		
+	fclose(diskp->file);
+
+	diskp->open = 0;
 }

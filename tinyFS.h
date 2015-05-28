@@ -1,3 +1,8 @@
+#include <stdlib.h>
+#include <stdio.h>
+#include <stdint.h>
+#include <string.h>
+
 /* The default size of the disk and file system block */
 #define BLOCKSIZE 256
 /* Your program should use a 10240 Byte disk size giving you 40 blocks total. This is a
@@ -11,6 +16,18 @@ typedef int fileDescriptor;
 
 /*	For libDisk.c	*/
 
+typedef struct disk {
+	FILE *file;
+	int diskNum;
+	int space;
+	int open;
+} Disk;
+
+typedef struct diskNode {
+	Disk disk;
+	struct diskNode *next;
+} DiskNode;
+
 
 /* This functions opens a regular UNIX file and designates the first nBytes of it as space for the emulated disk. nBytes should be an integral number of the block size. If nBytes > 0 and there is already a file by the given filename, that file’s contents may be overwritten. If nBytes is 0, an existing disk is opened, and should not be overwritten. There is no requirement to maintain integrity of any file content beyond nBytes. The return value is -1 on failure or a disk number on success. */
 int openDisk(char *filename, int nBytes);
@@ -23,6 +40,10 @@ int writeBlock(int disk, int bNum, void *block);
 
 /* closeDisk() takes a disk number ‘disk’ and makes the disk closed to further I/O; i.e. any subsequent reads or writes to a closed disk should return an error. Closing a disk should also close the underlying file, committing any buffered writes. */
 void closeDisk(int disk);
+
+void addDisk(Disk disk);
+Disk *findDisk(int diskNum);
+
 
 
 /*	For libTinyFS.c	*/

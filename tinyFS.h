@@ -24,7 +24,7 @@ typedef struct disk {
 } Disk;
 
 typedef struct diskNode {
-	Disk disk;
+	Disk *disk;
 	struct diskNode *next;
 } DiskNode;
 
@@ -40,13 +40,17 @@ int writeBlock(int disk, int bNum, void *block);
 /* closeDisk() takes a disk number ‘disk’ and makes the disk closed to further I/O; i.e. any subsequent reads or writes to a closed disk should return an error. Closing a disk should also close the underlying file, committing any buffered writes. */
 void closeDisk(int disk);
 
-void addDisk(Disk disk);
-Disk *findDisk(int diskNum);
-
-
 
 /*	For libTinyFS.c	*/
 
+#define MAGIC_NUMBER 0x45
+
+enum blockCodes {
+	SUPERBLOCK = 1,
+	INODE = 2,
+	FILE_EXTENT = 3,
+	FREE = 4
+};
 
 /* The superblock contains three different pieces of information. 
  * 1) It specifies the “magic number,” used for detecting when the disk is not of 
@@ -57,18 +61,35 @@ Disk *findDisk(int diskNum);
  * 3) It contains a pointer to the list of free blocks, or some other way to manage 
  		free blocks.
  */
-
 typedef struct superBlock {
 	int magicNumber;
-	int rootBlockNum;
-	void *freeBlocks;
+	struct blockNode *freeBlocks;
 } SuperBlock;
+
+typedef struct inode {
+	char name[9];
+	int size;
+	int seekOffset;					//	current file pointer
+	int open;						//	whether file is open or not
+	struct blockNode *dataBlocks;	//	data block linked list
+} Inode;
+
+typedef struct blockNode {
+	int blockNum;
+	struct blockNode *next;
+} BlockNode;
 
 typedef struct fileSystem {
 	int size;
-	Disk disk;
+	int diskNum;
+	int mounted;
 	SuperBlock superblock;
 } FileSystem;
+
+typedef struct fileSystemNode {
+	FileSystem *fileSystem;
+	struct fileSystemNode *next;
+} FileSystemNode;
 
 /* Makes a blank TinyFS file system of size nBytes on the file specified by ‘filename’. This function should use the emulated disk library to open the specified file, and upon success, format the file to be mountable. This includes initializing all data to 0x00, setting magic numbers, initializing and writing the superblock and inodes, etc. Must return a specified success/error code. */
 int tfs_mkfs(char *filename, int nBytes);

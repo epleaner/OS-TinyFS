@@ -2,11 +2,17 @@
 #include "tinyFS_errno.h"
 
 void libDiskTest();
+void libTinyFSTest();
 
 int main(int argc, char *argv[]) {
-	libDiskTest();
+	// libDiskTest();
+	libTinyFSTest();
 	
 	return 0;
+}
+
+void libTinyFSTest() {
+	tfs_mkfs("testing/test1.bin", 4096);
 }
 
 void libDiskTest() {

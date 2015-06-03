@@ -82,6 +82,7 @@ typedef struct blockNode {
 typedef struct fileSystem {
 	int size;
 	int diskNum;
+	char *filename;
 	int mounted;
 	SuperBlock superblock;
 } FileSystem;

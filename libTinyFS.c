@@ -6,8 +6,12 @@ int writeSuperBlock(fileDescriptor diskNum, SuperBlock superblock);
 int writeRootInode(fileDescriptor diskNum, Inode rootInode);
 BlockNode *setupFreeBlockList();
 void addFileSystem(FileSystem fileSystem);
+FileSystem *findFileSystem(char *filename);
+int verifyFileSystem(FileSystem fileSystem);
 
-FileSystemNode *head;
+FileSystemNode *fsHead = NULL;
+
+char *mountedFsName = NULL;
 
 /* Makes a blank TinyFS file system of size nBytes on the file specified by ‘filename’.
  * This function should use the emulated disk library to open the specified file, and
@@ -58,6 +62,7 @@ int tfs_mkfs(char *filename, int nBytes) {
 	fileSystem = (FileSystem) {
 		nBytes,		//	nBytes size
 	 	diskNum,
+		filename,
 		0,			//	not mounted
 		superblock
 	};
@@ -74,11 +79,42 @@ int tfs_mkfs(char *filename, int nBytes) {
  * mounted file system. Must return a specified success/error code. 
  */
 int tfs_mount(char *filename) {
-	return 0;
+	FileSystem *fileSystemPtr;
+
+	//	unmount currently mounted file system
+	tfs_unmount();
+
+	//	find file system by name
+	fileSystemPtr = findFileSystem(filename);
+
+	//	verify
+	if(verifyFileSystem(*fileSystemPtr) < 0) {
+		return FS_VERIFY_FAILURE;
+	}
+
+	//	set mounted to true, and store mounted file name for unmounting
+	fileSystemPtr->mounted = 1;
+
+	mountedFsName = filename;
+
+	return MOUNT_FS_SUCCESS;
 }
 
-int tfs_unmount(void) {
-	return 0;
+int tfs_unmount() {
+	FileSystem *fileSystemPtr;
+
+	if(mountedFsName == NULL) {
+		return UNMOUNT_FS_SUCCESS;
+	}
+	
+	//	find file system by name
+	fileSystemPtr = findFileSystem(mountedFsName);
+
+	//	set mounted to false, and clear mounted FS name
+	fileSystemPtr->mounted = 0;
+	mountedFsName = NULL;
+
+	return UNMOUNT_FS_SUCCESS;
 }
 
 /* Opens a file for reading and writing on the currently mounted file system. Creates a
@@ -184,7 +220,6 @@ BlockNode *setupFreeBlockList(int freeBlockCount) {
 	curr = head;
 
 	for(block = 3; block < freeBlockCount; block++) {
-		printf("added block %d as free block\n", block);
 		curr->next = malloc(sizeof(BlockNode));
 		curr->next->blockNum = block;
 		curr->next->next = NULL;
@@ -200,18 +235,17 @@ void addFileSystem(FileSystem fileSystem) {
 
 	FileSystem *fileSystemPtr = malloc(sizeof(FileSystem));
 	memcpy(fileSystemPtr, &fileSystem, sizeof(FileSystem));
-	printf("testing file system ptr: size is %d\n", fileSystemPtr->size);
 	
 	//	create head if it is null
-	if(head == NULL) {
-		head = malloc(sizeof(FileSystemNode));
-		*head = (FileSystemNode) {
+	if(fsHead == NULL) {
+		fsHead = malloc(sizeof(FileSystemNode));
+		*fsHead = (FileSystemNode) {
 			fileSystemPtr,
 			NULL
 		};
 	}
 	else {
-		curr = head;
+		curr = fsHead;
 		
 		while(curr->next != NULL) curr = curr->next;
 				
@@ -221,4 +255,42 @@ void addFileSystem(FileSystem fileSystem) {
 			NULL
 		};
 	}
+}
+
+FileSystem *findFileSystem(char *filename) {
+	FileSystemNode *curr = fsHead;
+	if(curr == NULL) {
+		printf("No filesystems made yet\n");
+		exit(-1);
+	}
+	
+	else {
+		if(strcmp(curr->fileSystem->filename, filename) == 0) return curr->fileSystem;
+		
+		while(curr->next != NULL) {
+			curr = curr->next;
+
+			if(strcmp(curr->fileSystem->filename, filename) == 0) return curr->fileSystem;
+		}
+		
+		printf("No file systems found with filename %s\n", filename);
+		exit(-1);
+	}
+}
+
+//	TODO: THIS ISNT WORKING
+int verifyFileSystem(FileSystem fileSystem) {
+	int block, blocks, result;
+	char *data = malloc(BLOCKSIZE);
+
+	blocks = fileSystem.size % BLOCKSIZE;
+
+	for(block = 0; block < blocks; block++) {
+		if((result = readBlock(fileSystem.diskNum, block, data)) < 0) {
+			return result;
+		}
+
+		printf("reading block %d, data at 1 is %x\n", block, data[1]);
+	}
+	return 1;
 }

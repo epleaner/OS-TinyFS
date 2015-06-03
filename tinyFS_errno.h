@@ -1,3 +1,5 @@
+#define		UNMOUNT_FS_SUCCESS	3
+#define		MOUNT_FS_SUCCESS	2
 #define		MAKE_FS_SUCCESS		1
 
 #define 	OPENDISK_FAILURE 	-1
@@ -5,3 +7,4 @@
 #define 	WRITEBLOCK_FAILURE 	-3
 #define 	DISK_PAST_LIMITS 	-4
 #define 	MAKE_FS_ERROR 		-5
+#define 	FS_VERIFY_FAILURE 	-6

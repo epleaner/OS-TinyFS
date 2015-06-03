@@ -8,6 +8,7 @@ BlockNode *setupFreeBlockList();
 void addFileSystem(FileSystem fileSystem);
 FileSystem *findFileSystem(char *filename);
 int verifyFileSystem(FileSystem fileSystem);
+int findFile(FileSystem fileSystem, char *filename);
 
 FileSystemNode *fsHead = NULL;
 
@@ -52,8 +53,6 @@ int tfs_mkfs(char *filename, int nBytes) {
 	rootInode = (Inode) {
 		"/",	//	root's name is slash
 		0,		//	root has file size zero (it's a special inode)
-		0,		//	seek offset is at beginning of file
-		0,		//	not open yet
 		NULL	//	root inode doesn't have any data blocks
 	};
 
@@ -64,7 +63,8 @@ int tfs_mkfs(char *filename, int nBytes) {
 	 	diskNum,
 		filename,
 		0,			//	not mounted
-		superblock
+		superblock,
+		NULL 		//	has empty dynamic resource table
 	};
 
 	addFileSystem(fileSystem);
@@ -122,6 +122,19 @@ int tfs_unmount() {
  * that can be used to reference this file while the filesystem is mounted. 
  */
 fileDescriptor tfs_openFile(char *name) {
+	FileSystem *fileSystemPtr;
+	DynamicResource dynamicResource;
+	int fileBlock;
+
+	fileSystemPtr = findFileSystem(mountedFsName);
+
+	if((fileBlock = findFile(*fileSystemPtr, name)) == -1) {
+		//	file doesn't exist so create inode
+	}
+	else {
+		//	file exists so add dynamic resource to table
+	}
+
 	return 0;
 }
 
@@ -131,14 +144,18 @@ int tfs_closeFile(fileDescriptor FD) {
 }
 
 /* Writes buffer ‘buffer’ of size ‘size’, which represents an entire file’s content, to 
- *the file system. Sets the file pointer to 0 (the start of file) when done. Returns 
+ * the file system. Sets the file pointer to 0 (the start of file) when done. Returns 
  * success/error codes. 
  */
 int tfs_writeFile(fileDescriptor FD,char *buffer, int size) {
 	return 0;
 }
 
-/* deletes a file and marks its blocks as free on disk. */
+/* deletes a file and marks its blocks as free on disk.
+ * You can think of deleteFile as equivalent to ftruncate(fd, 0). 
+ * So it should be able to be written again.
+ * So then free its blocks but don't delete its inode.
+ */
 int tfs_deleteFile(fileDescriptor FD) {
 	return 0;
 }
@@ -295,4 +312,28 @@ int verifyFileSystem(FileSystem fileSystem) {
 	}
 
 	return 1;
+}
+
+int findFile(FileSystem fileSystem, char *filename) {
+	int block, blocks, result;
+	char *data = malloc(BLOCKSIZE);
+	Inode *inodePtr;
+
+	blocks = fileSystem.size / BLOCKSIZE;
+
+	for(block = 0; block < blocks; block++) {
+		if((result = readBlock(fileSystem.diskNum, block, data)) < 0) {
+			return result;		//	means error reading block
+		}
+
+		if(data[0] == INODE) {
+			inodePtr = (Inode *)&data[2];
+
+			if(strcmp(inodePtr->name, filename) == 0) {
+				return block;
+			}
+		}
+	}
+
+	return -1;
 }

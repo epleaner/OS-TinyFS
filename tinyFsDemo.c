@@ -14,6 +14,7 @@ int main(int argc, char *argv[]) {
 void libTinyFSTest() {
 	tfs_mkfs("testing/test1.bin", 4096);
 	tfs_mount("testing/test1.bin");
+	tfs_openFile("MEOWOWOW");
 }
 
 void libDiskTest() {

@@ -25,14 +25,14 @@ int openDisk(char *filename, int nBytes) {
 	int diskNum = 0;
 	FILE *file;
 	Disk disk;
-	char *permissions = "a+";
+	char *permissions = "w+";
 	
 	if(nBytes % BLOCKSIZE != 0) {
 		return OPENDISK_FAILURE;
 	}
 
-	//	file does not exist
-	if(access(filename, F_OK) != -1) {
+	//	file doesn't exist if access returns -1
+	if(access(filename, F_OK) == -1) {
 		permissions = "w+";
 
 		//	doesn't exist but only read, so failure

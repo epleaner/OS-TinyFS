@@ -69,8 +69,6 @@ typedef struct superBlock {
 typedef struct inode {
 	char name[9];
 	int size;
-	int seekOffset;					//	current file pointer
-	int open;						//	whether file is open or not
 	struct blockNode *dataBlocks;	//	data block linked list
 } Inode;
 
@@ -85,12 +83,25 @@ typedef struct fileSystem {
 	char *filename;
 	int mounted;
 	SuperBlock superblock;
+	struct dynamicResourceNode *dynamicResourceTable;
 } FileSystem;
 
 typedef struct fileSystemNode {
 	FileSystem *fileSystem;
 	struct fileSystemNode *next;
 } FileSystemNode;
+
+typedef struct dynamicResource {
+	char name[9];
+	int seekOffset;					//	current file pointer
+	fileDescriptor FD; 
+	int inodeBlockNum;
+} DynamicResource;
+
+typedef struct dynamicResourceNode {
+	DynamicResource *dynamicResource;
+	struct dynamicResourceNode *next;
+} DynamicResourceNode;
 
 /* Makes a blank TinyFS file system of size nBytes on the file specified by ‘filename’. This function should use the emulated disk library to open the specified file, and upon success, format the file to be mountable. This includes initializing all data to 0x00, setting magic numbers, initializing and writing the superblock and inodes, etc. Must return a specified success/error code. */
 int tfs_mkfs(char *filename, int nBytes);

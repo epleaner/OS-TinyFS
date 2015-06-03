@@ -278,19 +278,21 @@ FileSystem *findFileSystem(char *filename) {
 	}
 }
 
-//	TODO: THIS ISNT WORKING
 int verifyFileSystem(FileSystem fileSystem) {
 	int block, blocks, result;
 	char *data = malloc(BLOCKSIZE);
 
-	blocks = fileSystem.size % BLOCKSIZE;
+	blocks = fileSystem.size / BLOCKSIZE;
 
 	for(block = 0; block < blocks; block++) {
 		if((result = readBlock(fileSystem.diskNum, block, data)) < 0) {
-			return result;
+			return result;		//	means error reading block
 		}
 
-		printf("reading block %d, data at 1 is %x\n", block, data[1]);
+		if(data[1] != MAGIC_NUMBER) {
+			return FS_VERIFY_FAILURE;
+		}
 	}
+
 	return 1;
 }

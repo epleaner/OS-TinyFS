@@ -14,6 +14,7 @@ int addInode(fileDescriptor diskNum, Inode inode, int blockNum);
 int addDynamicResource(FileSystem *fileSystemPtr, DynamicResource dynamicResource);
 int removeDynamicResource(FileSystem *fileSystem, fileDescriptor FD);
 int tfs_rename(char *oldName, char *newName);
+void freeDataBlocks(BlockNode *blockHead);
 int tfs_readdir();
 int renameInode(FileSystem *fileSystemPtr, int blockNum, char *newName);
 int renameDynamicResource(FileSystem *fileSystemPtr, int inodeBlockNum, char *newName);
@@ -343,7 +344,7 @@ int tfs_deleteFile(fileDescriptor FD) {
 	BlockNode *tmpPtr;
 	char buf[BLOCKSIZE];
 	char *clearBuf = calloc(1, BLOCKSIZE);
-	int offset;
+	printf("ATTEMPTING TO DELETE FILE\n");
 
 	if (dynamicResourcePtr == NULL) {
 		return DELETE_FILE_FAILURE;
@@ -363,11 +364,26 @@ int tfs_deleteFile(fileDescriptor FD) {
 	while (tmpPtr != NULL) {
 		writeBlock(fileSystemPtr->diskNum, tmpPtr->blockNum, clearBuf);
 		tmpPtr = tmpPtr->next;
-		offset--;
 	}
 
+	freeDataBlocks(inodePtr->dataBlocks);
+	inodePtr->dataBlocks = NULL;
 	inodePtr->size = 0;
+	printf("DELETE SUCCESS!\n");
 	return DELETE_FILE_SUCCESS;
+}
+
+
+//Free a deleted files data blocks
+void freeDataBlocks(BlockNode *blockHead) {
+	BlockNode *tmpHead = blockHead;
+	BlockNode *tmpPtr;
+
+	while (tmpHead != NULL) {
+		tmpPtr = tmpHead;
+		tmpHead = tmpHead->next;
+		free(tmpPtr);
+	}
 }
 
 /* reads one byte from the file and copies it to buffer, using the current file pointer 
@@ -424,11 +440,8 @@ int tfs_seek(fileDescriptor FD, int offset) {
 	Inode *inodePtr;
 	BlockNode *tmpPtr;
     char buf[BLOCKSIZE];
-<<<<<<< HEAD
-    printf("SEEKING FILE\n");
-=======
 
->>>>>>> 3eb543698e09eb3f4c139f6107085596412eeb74
+    printf("SEEKING FILE\n");
 	if (dynamicResourcePtr == NULL) {
 		printf("FILE NOT FOUND\n");
 		return SEEK_FILE_FAILURE;

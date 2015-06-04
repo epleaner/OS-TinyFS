@@ -22,7 +22,10 @@ void libTinyFSTest() {
 	tfs_writeFile(file1, big, (BLOCKSIZE * 2) + 12);
 	tfs_seek(file1, (BLOCKSIZE * 2) + 12);
 	tfs_readByte(file1, &readByte);
-	printf("read %c\n", readByte);
+	tfs_seek(file1, 123);
+	tfs_seek(file1, (BLOCKSIZE * 2) + 13);
+	tfs_seek(file1, (BLOCKSIZE * 2) + 12);
+	tfs_deleteFile(file1);
 	tfs_closeFile(file1);
 }
 

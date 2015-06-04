@@ -182,7 +182,32 @@ int tfs_closeFile(fileDescriptor FD) {
  * success/error codes. 
  */
 int tfs_writeFile(fileDescriptor FD, char *buffer, int size) {
+	FileSystem *fileSystemPtr = findFileSystem(mountedFsName);
+	DynamicResource *dynamicResource = findResource(fileSystemPtr->dynamicResourceTable, FD);
+	char buf[BLOCKSIZE];
+
+	if (dynamicResource == NULL) {
+		return WRITEBLOCK_FAILURE;
+	}
+
+	if (readBlock(fileSystemPtr->diskNum, dynamicResource->inodeBlockNum, buf) != 0) {
+		printf("ERROR...\n");
+	}
+
 	return 0;
+}
+
+DynamicResource *findResource(DynamicResourceNode *rsrcTable, int fd) {
+	DynamicResourceNode *tmpHead = rsrcTable;
+
+	while (tmpHead != NULL) {
+		if (tmpHead->dynamicResource->FD == fd) {
+			return (tmpHead->dynamicResource);
+		}
+		tmpHead = tmpHead->next;
+	}
+
+	return NULL;
 }
 
 /* deletes a file and marks its blocks as free on disk.

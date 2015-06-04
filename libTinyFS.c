@@ -192,8 +192,9 @@ int tfs_writeFile(fileDescriptor FD, char *buffer, int size) {
 	char buf[BLOCKSIZE];
 	char writeData[BLOCKSIZE];
 	Inode *inodePtr;
-	int freeBlock;
+	int blockNum;
 	int dataLeft = size;
+	int offsetBlocks = 0;
 	BlockNode *tmpBlock;
 
 	if (dynamicResource == NULL) {
@@ -201,27 +202,26 @@ int tfs_writeFile(fileDescriptor FD, char *buffer, int size) {
 	}
 
 	if (readBlock(fileSystemPtr->diskNum, dynamicResource->inodeBlockNum, buf) != 0) {
-		printf("ERROR...\n");
+		return WRITEBLOCK_FAILURE;
 	}
 
 	iNodePtr = (Inode *)&buf[2];
 	tmpBlock = iNodePtr->dataBlocks;
 
+	if (iNodePtr->size == 0) {
+		blockNum = getFreeBlock(*fileSystemPtr);
+	} else {
+		offsetBlocks = dynamicResource->seekOffset / BLOCKSIZE;
+		tmpBlock = iNodePtr->dataBlocks;
+		while (offsetBlocks > 0) {
+			tmpBlock = tmpBlock->next;
+			offsetBlocks--;
+		}
+		blockNum = tmpBlock->blockNum;
+	}
+
 	while (dataLeft != 0) {
 
-		if (tmpBlock == NULL) {
-			freeBlock = getFreeBlock(*fileSystemPtr);
-		} else {
-			readBlock(fileSystemPtr->diskNum, tmpBlock->blockNum, writeData);
-			tmpBlock = tmpBlock->next;
-			freeBlock = -1;
-		}
-
-		if (dynamicResource->seekOffset % BLOCKSIZE == 0) {
-
-		} else {
-
-		}
 	}
 
 	return 0;

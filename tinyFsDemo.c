@@ -13,6 +13,7 @@ int main(int argc, char *argv[]) {
 
 void libTinyFSTest() {
 	char readByte;
+	int index;
 	char big[(BLOCKSIZE * 2) + 12];
 	big[(BLOCKSIZE * 2) + 11] = 'X';
 	int file1;
@@ -20,11 +21,13 @@ void libTinyFSTest() {
 	tfs_mount("testing/test1.bin");
 	file1 = tfs_openFile("MEOWOWOW");
 	tfs_writeFile(file1, big, (BLOCKSIZE * 2) + 12);
-	tfs_seek(file1, (BLOCKSIZE * 2) + 12);
-	tfs_readByte(file1, &readByte);
+	for (index = 0; index < (BLOCKSIZE*2) +12; index++) {
+		tfs_readByte(file1, &readByte);
+	}
+	//tfs_readByte(file1, &readByte);
 	tfs_seek(file1, 123);
 	tfs_seek(file1, (BLOCKSIZE * 2) + 13);
-	tfs_seek(file1, (BLOCKSIZE * 2) + 12);
+	tfs_seek(file1, (BLOCKSIZE * 2) + 11);
 	tfs_deleteFile(file1);
 	tfs_closeFile(file1);
 }

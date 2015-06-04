@@ -412,7 +412,7 @@ int tfs_readByte(fileDescriptor FD, char *buffer) {
 	if (dynamicResourcePtr->seekOffset > inodePtr->size) {
 		return READ_BYTE_FAILURE;
 	}
-	offset = dynamicResourcePtr->seekOffset / BLOCKSIZE;
+	offset = dynamicResourcePtr->seekOffset / (BLOCKSIZE-2);
 	tmpPtr = inodePtr->dataBlocks;
 
 	printf("need to move %d blocks in. seek offset: %d\n", offset, dynamicResourcePtr->seekOffset);
@@ -427,8 +427,11 @@ int tfs_readByte(fileDescriptor FD, char *buffer) {
 	}
 
 	offset = dynamicResourcePtr->seekOffset % BLOCKSIZE;
-	*buffer = buf[offset];
+	offset += 2;
+	//printf("offset to %d in block\n", offset);
+	*buffer = (0xFF) & buf[offset];
 	dynamicResourcePtr->seekOffset++;
+	printf("READ IN %0x\n", *buffer);
 
 	return READ_BYTE_SUCCESS;
 }

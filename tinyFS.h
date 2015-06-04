@@ -67,7 +67,7 @@ typedef struct superBlock {
 } SuperBlock;
 
 typedef struct inode {
-	char name[9];
+	char *name;
 	int size;
 	struct blockNode *dataBlocks;	//	data block linked list
 } Inode;
@@ -80,6 +80,7 @@ typedef struct blockNode {
 typedef struct fileSystem {
 	int size;
 	int diskNum;
+	int openCount;
 	char *filename;
 	int mounted;
 	SuperBlock superblock;
@@ -92,7 +93,7 @@ typedef struct fileSystemNode {
 } FileSystemNode;
 
 typedef struct dynamicResource {
-	char name[9];
+	char *name;
 	int seekOffset;					//	current file pointer
 	fileDescriptor FD; 
 	int inodeBlockNum;

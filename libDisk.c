@@ -181,7 +181,7 @@ int writeBlock(int disk, int bNum, void *block) {
 	if(fseek(diskPtr->file, byteOffset, SEEK_SET) != 0) {
 		return WRITEBLOCK_FAILURE;
 	}
-	
+
 	//	write from block buffer into file
 	fwrite(block, BLOCKSIZE, 1, diskPtr->file);
 

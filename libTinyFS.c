@@ -9,6 +9,9 @@ void addFileSystem(FileSystem fileSystem);
 FileSystem *findFileSystem(char *filename);
 int verifyFileSystem(FileSystem fileSystem);
 int findFile(FileSystem fileSystem, char *filename);
+int getFreeBlock(FileSystem fileSystem);
+int addInode(fileDescriptor diskNum, Inode inode, int blockNum);
+int addDynamicResource(FileSystem *fileSystemPtr, DynamicResource dynamicResource);
 
 FileSystemNode *fsHead = NULL;
 
@@ -42,7 +45,7 @@ int tfs_mkfs(char *filename, int nBytes) {
 	//	set up free block linked list (total blocks - 1 (for superblock) - 1 (for root inode))
 	freeBlockPtr = setupFreeBlockList(blockCount - 2);
 
-	//	superblock contains magic number, root block num, and pointer to free blocks
+	//	superblock contains magic number and pointer to free blocks
 	superblock = (SuperBlock) {
 		MAGIC_NUMBER,
 		freeBlockPtr
@@ -61,6 +64,7 @@ int tfs_mkfs(char *filename, int nBytes) {
 	fileSystem = (FileSystem) {
 		nBytes,		//	nBytes size
 	 	diskNum,
+	 	0,			//	zero files open
 		filename,
 		0,			//	not mounted
 		superblock,
@@ -124,18 +128,48 @@ int tfs_unmount() {
 fileDescriptor tfs_openFile(char *name) {
 	FileSystem *fileSystemPtr;
 	DynamicResource dynamicResource;
-	int fileBlock;
+	Inode inode;
+	int inodeBlockNum;
+
+	if(strlen(name) > 8) {
+		printf("Filename must be 8 or less characters.\n");
+		return OPEN_FILE_FAILURE;
+	}
 
 	fileSystemPtr = findFileSystem(mountedFsName);
 
-	if((fileBlock = findFile(*fileSystemPtr, name)) == -1) {
+	if((inodeBlockNum = findFile(*fileSystemPtr, name)) < 0) {
+
 		//	file doesn't exist so create inode
+		inodeBlockNum = getFreeBlock(*fileSystemPtr);
+
+		//	error getting free block
+		if(inodeBlockNum < 0) {
+			return OPEN_FILE_FAILURE;
+		}
+
+		//	create new inode and insert it
+		inode = (Inode) {
+			name,
+			0,
+			NULL
+		};
+
+		addInode(fileSystemPtr->diskNum, inode, inodeBlockNum);
 	}
-	else {
-		//	file exists so add dynamic resource to table
+	
+	dynamicResource = (DynamicResource) {
+		name,
+		0,
+		fileSystemPtr->openCount++,
+		inodeBlockNum
+	};
+
+	if(addDynamicResource(fileSystemPtr, dynamicResource) < 0) {
+		return OPEN_FILE_FAILURE;
 	}
 
-	return 0;
+	return OPEN_FILE_SUCCESS;
 }
 
 /* Closes the file, de-allocates all system/disk resources, and removes table entry */
@@ -147,7 +181,7 @@ int tfs_closeFile(fileDescriptor FD) {
  * the file system. Sets the file pointer to 0 (the start of file) when done. Returns 
  * success/error codes. 
  */
-int tfs_writeFile(fileDescriptor FD,char *buffer, int size) {
+int tfs_writeFile(fileDescriptor FD, char *buffer, int size) {
 	return 0;
 }
 
@@ -336,4 +370,59 @@ int findFile(FileSystem fileSystem, char *filename) {
 	}
 
 	return -1;
+}
+
+int getFreeBlock(FileSystem fileSystem) {
+	int freeBlockNum;
+
+	if(fileSystem.superblock.freeBlocks == NULL) {
+		return -1;
+	}
+
+	freeBlockNum = fileSystem.superblock.freeBlocks->blockNum;
+	fileSystem.superblock.freeBlocks = fileSystem.superblock.freeBlocks->next;
+
+	return freeBlockNum;
+}
+
+int addInode(fileDescriptor diskNum, Inode inode, int blockNum) {
+	char *data = calloc(1, BLOCKSIZE);
+	int result;
+	
+	//	set first byte of data to inode block code
+	memset(&data[0], INODE, 1);
+
+	//	set second byte of data to magic number
+	memset(&data[1], MAGIC_NUMBER, 1);
+
+	//	copy over inode data
+	memcpy(&data[2], &(inode), sizeof(inode));
+
+	//	write inode and return status
+	return writeBlock(diskNum, blockNum, data);
+}
+
+int addDynamicResource(FileSystem *fileSystemPtr, DynamicResource dynamicResource) {
+	DynamicResourceNode *curr = fileSystemPtr->dynamicResourceTable;
+
+	DynamicResource *dynamicResourcePtr = malloc(sizeof(DynamicResource));
+	memcpy(dynamicResourcePtr, &dynamicResource, sizeof(DynamicResource));
+
+	//	create head if it is null
+	if(curr == NULL) {
+		curr = malloc(sizeof(DynamicResourceNode));
+		*curr = (DynamicResourceNode) {
+			dynamicResourcePtr,
+			NULL
+		};
+	}
+	else {
+		while(curr->next != NULL) curr = curr->next;
+				
+		curr->next = malloc(sizeof(DynamicResourceNode));
+		*(curr->next) = (DynamicResourceNode) {
+			dynamicResourcePtr,
+			NULL
+		};
+	}
 }

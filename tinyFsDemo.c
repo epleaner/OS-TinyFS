@@ -20,11 +20,11 @@ void libTinyFSTest() {
 	tfs_mount("testing/test1.bin");
 	file1 = tfs_openFile("MEOWOWOW");
 	tfs_writeFile(file1, big, (BLOCKSIZE * 2) + 12);
-	tfs_seek(file1, (BLOCKSIZE * 2) + 12);
-	tfs_readByte(file1, &readByte);
-	tfs_seek(file1, 123);
-	tfs_seek(file1, (BLOCKSIZE * 2) + 13);
-	tfs_seek(file1, (BLOCKSIZE * 2) + 12);
+	tfs_readdir();
+	tfs_rename("MEOWOWOW", "new name");
+	tfs_rename("/", "bad");
+	tfs_rename("new name", "this is too long");
+	tfs_readdir();
 	tfs_deleteFile(file1);
 	tfs_closeFile(file1);
 }

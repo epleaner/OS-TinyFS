@@ -228,6 +228,11 @@ int tfs_closeFile(fileDescriptor FD) {
  			NULL
  		};
 
+ 		//	write back changes to inode block
+	 	if(writeBlock(fileSystemPtr->diskNum, dynamicResourcePtr->inodeBlockNum, inodeData) < 0) {
+	 		return WRITE_FILE_FAILURE;
+	 	}
+
  		currBlock = inodePtr->dataBlocks;
  	}
  	else {
@@ -243,9 +248,6 @@ int tfs_closeFile(fileDescriptor FD) {
 
  		printf("made it to block %d\n", currBlock->blockNum);
  	}
-
- 	printf("artifically seeking 100 ahead\n");
- 	dynamicResourcePtr->seekOffset = 100;
 
  	while(written < size) {
  		//	read in data block
@@ -304,6 +306,12 @@ int tfs_closeFile(fileDescriptor FD) {
  	}
 
  	dynamicResourcePtr->seekOffset = 0;
+ 	inodePtr->size = written;
+
+ 	//	write back changes to inode block
+ 	if(writeBlock(fileSystemPtr->diskNum, dynamicResourcePtr->inodeBlockNum, inodeData) < 0) {
+ 		return WRITE_FILE_FAILURE;
+ 	}
 
  	return WRITE_FILE_SUCCESS;
  }
@@ -328,8 +336,7 @@ DynamicResource *findResource(DynamicResourceNode *rsrcTable, int fd) {
  */
 int tfs_deleteFile(fileDescriptor FD) {
 	FileSystem *fileSystemPtr = findFileSystem(mountedFsName);
-	DynamicResource *dynamicResourcePtr;
-        dynamicResourcePtr = findResource(fileSystemPtr->dynamicResourceTable, FD);
+	DynamicResource *dynamicResourcePtr = findResource(fileSystemPtr->dynamicResourceTable, FD);
 	Inode *inodePtr;
 	BlockNode *tmpPtr;
 	char buf[BLOCKSIZE];
@@ -387,7 +394,7 @@ int tfs_readByte(fileDescriptor FD, char *buffer) {
 
 	inodePtr = (Inode *)&buf[2];
 
-	if (dynamicResourcePtr->seekOffset == inodePtr->size) {
+	if (dynamicResourcePtr->seekOffset >= inodePtr->size) {
 		return READ_BYTE_FAILURE;
 	}
 
@@ -416,7 +423,7 @@ int tfs_seek(fileDescriptor FD, int offset) {
 	DynamicResource *dynamicResourcePtr = findResource(fileSystemPtr->dynamicResourceTable, FD);
 	Inode *inodePtr;
 	BlockNode *tmpPtr;
-        char buf[BLOCKSIZE];
+    char buf[BLOCKSIZE];
 
 	if (dynamicResourcePtr == NULL) {
 		return SEEK_FILE_FAILURE;

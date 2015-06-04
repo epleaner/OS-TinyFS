@@ -12,6 +12,7 @@ int findFile(FileSystem fileSystem, char *filename);
 int getFreeBlock(FileSystem fileSystem);
 int addInode(fileDescriptor diskNum, Inode inode, int blockNum);
 int addDynamicResource(FileSystem *fileSystemPtr, DynamicResource dynamicResource);
+int removeDynamicResource(FileSystem *fileSystem, fileDescriptor FD);
 
 FileSystemNode *fsHead = NULL;
 
@@ -129,7 +130,7 @@ fileDescriptor tfs_openFile(char *name) {
 	FileSystem *fileSystemPtr;
 	DynamicResource dynamicResource;
 	Inode inode;
-	int inodeBlockNum;
+	int inodeBlockNum, FD;
 
 	if(strlen(name) > 8) {
 		printf("Filename must be 8 or less characters.\n");
@@ -157,11 +158,13 @@ fileDescriptor tfs_openFile(char *name) {
 
 		addInode(fileSystemPtr->diskNum, inode, inodeBlockNum);
 	}
+
+	FD = fileSystemPtr->openCount++;
 	
 	dynamicResource = (DynamicResource) {
 		name,
 		0,
-		fileSystemPtr->openCount++,
+		FD,
 		inodeBlockNum
 	};
 
@@ -169,12 +172,17 @@ fileDescriptor tfs_openFile(char *name) {
 		return OPEN_FILE_FAILURE;
 	}
 
-	return OPEN_FILE_SUCCESS;
+	return FD;
 }
 
 /* Closes the file, de-allocates all system/disk resources, and removes table entry */
 int tfs_closeFile(fileDescriptor FD) {
-	return 0;
+	FileSystem *fileSystemPtr;
+	DynamicResource *dynamicResourcePtr;
+
+	fileSystemPtr = findFileSystem(mountedFsName);
+
+	return removeDynamicResource(fileSystemPtr, FD);
 }
 
 /* Writes buffer ‘buffer’ of size ‘size’, which represents an entire file’s content, to 
@@ -415,6 +423,8 @@ int addDynamicResource(FileSystem *fileSystemPtr, DynamicResource dynamicResourc
 			dynamicResourcePtr,
 			NULL
 		};
+
+		fileSystemPtr->dynamicResourceTable = curr;
 	}
 	else {
 		while(curr->next != NULL) curr = curr->next;
@@ -424,5 +434,39 @@ int addDynamicResource(FileSystem *fileSystemPtr, DynamicResource dynamicResourc
 			dynamicResourcePtr,
 			NULL
 		};
+	}
+}
+
+int removeDynamicResource(FileSystem *fileSystem, fileDescriptor FD) {
+	DynamicResourceNode *temp, *curr;
+
+	curr = fileSystem->dynamicResourceTable;
+
+	if(curr == NULL) {
+		printf("No dynamic resources for this filesystem made yet\n");
+		return -1;
+	}
+	
+	else {
+		if(curr->dynamicResource->FD == FD) {
+			temp = curr;
+			curr = curr->next;
+			free(temp);
+
+			return 1;
+		}
+
+		while(curr->next != NULL) {
+			curr = curr->next;
+
+			if(curr->dynamicResource->FD == FD) {
+				temp = curr;
+				curr = curr->next;
+				free(temp);
+			}
+		}
+		
+		printf("No dynamic resources found with FD %d\n", FD);
+		exit(-1);
 	}
 }

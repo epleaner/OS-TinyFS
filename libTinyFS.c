@@ -308,6 +308,8 @@ int tfs_closeFile(fileDescriptor FD) {
  	dynamicResourcePtr->seekOffset = 0;
  	inodePtr->size = written;
 
+ 	printf("inode pointers size is now %d\n", inodePtr->size);
+
  	//	write back changes to inode block
  	if(writeBlock(fileSystemPtr->diskNum, dynamicResourcePtr->inodeBlockNum, inodeData) < 0) {
  		return WRITE_FILE_FAILURE;
@@ -394,12 +396,13 @@ int tfs_readByte(fileDescriptor FD, char *buffer) {
 
 	inodePtr = (Inode *)&buf[2];
 
-	if (dynamicResourcePtr->seekOffset >= inodePtr->size) {
+	if (dynamicResourcePtr->seekOffset > inodePtr->size) {
 		return READ_BYTE_FAILURE;
 	}
-
 	offset = dynamicResourcePtr->seekOffset / BLOCKSIZE;
 	tmpPtr = inodePtr->dataBlocks;
+
+	printf("need to move %d blocks in. seek offset: %d\n", offset, dynamicResourcePtr->seekOffset);
 
 	while (offset > 0) {
 		tmpPtr = tmpPtr->next;

@@ -74,6 +74,9 @@ typedef struct inode {
 	int size;
 	int filePermission;
 	struct blockNode *dataBlocks;	//	data block linked list
+	char *creationTimestamp;
+	char *modificationTimestamp;
+	char *accessTimestamp;
 } Inode;
 
 typedef struct blockNode {

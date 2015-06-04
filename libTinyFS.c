@@ -1,3 +1,5 @@
+#include <time.h>
+
 #include "tinyFS.h"
 #include "tinyFS_errno.h"
 
@@ -19,6 +21,8 @@ int tfs_readdir();
 int renameInode(FileSystem *fileSystemPtr, int blockNum, char *newName);
 int renameDynamicResource(FileSystem *fileSystemPtr, int inodeBlockNum, char *newName);
 DynamicResource *findResource(DynamicResourceNode *rsrcTable, int fd);
+void getCurrentTime(char *timestamp);
+int tfs_readFileInfo(fileDescriptor FD);
 
 FileSystemNode *fsHead = NULL;
 
@@ -37,6 +41,15 @@ int tfs_mkfs(char *filename, int nBytes) {
 	Inode rootInode;
 	FileSystem fileSystem;
 	void *freeBlockPtr;
+	char *creationTimestamp, *modificationTimestamp, *accessTimestamp;
+
+	creationTimestamp = (char *) malloc(30);
+	modificationTimestamp = (char *) malloc(30);
+	accessTimestamp = (char *) malloc(30);
+
+	getCurrentTime(creationTimestamp);
+	getCurrentTime(modificationTimestamp);
+	getCurrentTime(accessTimestamp);
 
 	if((diskNum = openDisk(filename, nBytes)) < 0) {
 		return MAKE_FS_ERROR;
@@ -64,7 +77,10 @@ int tfs_mkfs(char *filename, int nBytes) {
 		"/",	//	root's name is slash
 		0,		//	root has file size zero (it's a special inode)
 		READWRITE,
-		NULL	//	root inode doesn't have any data blocks
+		NULL,	//	root inode doesn't have any data blocks
+		creationTimestamp,
+		modificationTimestamp,
+		accessTimestamp
 	};
 
 	writeRootInode(diskNum, rootInode);
@@ -139,6 +155,15 @@ fileDescriptor tfs_openFile(char *name) {
 	Inode inode;
 	int inodeBlockNum, FD;
 	char *permName = (char *) malloc(9);
+	char *creationTimestamp, *modificationTimestamp, *accessTimestamp;
+
+	creationTimestamp = (char *) malloc(30);
+	modificationTimestamp = (char *) malloc(30);
+	accessTimestamp = (char *) malloc(30);
+
+	getCurrentTime(creationTimestamp);
+	getCurrentTime(modificationTimestamp);
+	getCurrentTime(accessTimestamp);
 
 	if(strlen(name) > 8) {
 		printf("Filename must be 8 or less characters.\n");
@@ -164,7 +189,10 @@ fileDescriptor tfs_openFile(char *name) {
 			permName,
 			0,
 			READWRITE,
-			NULL
+			NULL,
+			creationTimestamp,
+			modificationTimestamp,
+			accessTimestamp
 		};
 
 		addInode(fileSystemPtr->diskNum, inode, inodeBlockNum);
@@ -399,6 +427,7 @@ int tfs_writeByte(fileDescriptor FD, unsigned int data) {
  	inodePtr = (Inode *)&inodeData[2];
 
  	if (inodePtr->filePermission == READONLY) {
+ 		printf("Do not have permissions to write to this file\n");
 		return DELETE_FILE_FAILURE;
 	}
 
@@ -453,6 +482,7 @@ int tfs_deleteFile(fileDescriptor FD) {
 	inodePtr = (Inode *)&buf[2];
 
 	if (inodePtr->filePermission == READONLY) {
+ 		printf("Do not have permission to delete\n");
 		return DELETE_FILE_FAILURE;
 	}
 
@@ -564,6 +594,34 @@ int tfs_seek(fileDescriptor FD, int offset) {
 	printf("SEEK IS NOW %d\n", dynamicResourcePtr->seekOffset);
 
 	return SEEK_FILE_SUCCESS;
+}
+
+int tfs_readFileInfo(fileDescriptor FD) {
+	int result;
+	FileSystem *fileSystemPtr;
+	DynamicResource *dynamicResourcePtr;
+	Inode *inodePtr;
+    char buf[BLOCKSIZE];
+
+	fileSystemPtr = findFileSystem(mountedFsName);
+
+	dynamicResourcePtr = findResource(fileSystemPtr->dynamicResourceTable, FD);
+
+	if (dynamicResourcePtr == NULL) {
+		return SEEK_FILE_FAILURE;
+	}
+	if (readBlock(fileSystemPtr->diskNum, dynamicResourcePtr->inodeBlockNum, buf) < 0) {
+		return SEEK_FILE_FAILURE;
+	}
+
+	inodePtr = (Inode *)&buf[2];
+
+	printf("File info for %s:\n", inodePtr->name);
+	printf("Creation time: %s", inodePtr->creationTimestamp);
+	printf("Modification time: %s", inodePtr->modificationTimestamp);
+	printf("Access time: %s", inodePtr->accessTimestamp);
+
+	return 1;
 }
 
 /* File listing and renaming */
@@ -921,4 +979,14 @@ int renameDynamicResource(FileSystem *fileSystemPtr, int inodeBlockNum, char *ne
 
 	printf("No files with inode %d open\n", inodeBlockNum);
 	return -1;
+}
+
+void getCurrentTime(char *timestamp) {
+	char *timeString;
+	time_t rawTime;
+	struct tm *timeInfo;
+	time(&rawTime);
+	timeInfo = localtime(&rawTime);
+	timeString = asctime(timeInfo);
+	strcpy(timestamp, timeString);
 }

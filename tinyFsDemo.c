@@ -18,6 +18,8 @@ void libTinyFSTest() {
 	tfs_mount("testing/test1.bin");
 	file1 = tfs_openFile("MEOWOWOW");
 	tfs_writeFile(file1, big, (BLOCKSIZE * 2) + 12);
+	tfs_seek(file1, 123);
+	tfs_seek(file1, (BLOCKSIZE * 2) + 13);
 	tfs_closeFile(file1);
 }
 

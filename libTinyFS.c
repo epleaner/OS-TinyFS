@@ -346,17 +346,14 @@ int tfs_deleteFile(fileDescriptor FD) {
 
 	inodePtr = (Inode *)&buf[2];
 
-	offset = dynamicResourcePtr->seekOffset / BLOCKSIZE;
 	tmpPtr = inodePtr->dataBlocks;
 
 	memset(&clearBuf[0], FREE, 1);
 	memset(&clearBuf[1], MAGIC_NUMBER, 1);
 
-	writeBlock(fileSystemPtr->diskNum, tmpPtr->blockNum, clearBuf);
-
-	while (offset > 0) {
-		tmpPtr = tmpPtr->next;
+	while (tmpPtr != NULL) {
 		writeBlock(fileSystemPtr->diskNum, tmpPtr->blockNum, clearBuf);
+		tmpPtr = tmpPtr->next;
 		offset--;
 	}
 
@@ -416,21 +413,26 @@ int tfs_seek(fileDescriptor FD, int offset) {
 	DynamicResource *dynamicResourcePtr = findResource(fileSystemPtr->dynamicResourceTable, FD);
 	Inode *inodePtr;
 	BlockNode *tmpPtr;
-        char buf[BLOCKSIZE];
-
+    char buf[BLOCKSIZE];
+    printf("SEEKING FILE\n");
 	if (dynamicResourcePtr == NULL) {
+		printf("FILE NOT FOUND\n");
 		return SEEK_FILE_FAILURE;
 	}
 	if (readBlock(fileSystemPtr->diskNum, dynamicResourcePtr->inodeBlockNum, buf) < 0) {
+		printf("SEEK FAIL\n");
 		return SEEK_FILE_FAILURE;
 	}
 
 	inodePtr = (Inode *)&buf[2];
 	if (offset > inodePtr->size) {
+		printf("ERROR: seeking past file size\n");
+		printf("seek max is %d\n", inodePtr->size);
 		return SEEK_FILE_FAILURE;
 	}
-
+	printf("SEEK IS %d\n", dynamicResourcePtr->seekOffset);
 	dynamicResourcePtr->seekOffset = offset;
+	printf("SEEK IS NOW %d\n", dynamicResourcePtr->seekOffset);
 
 	return SEEK_FILE_SUCCESS;
 }

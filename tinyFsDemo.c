@@ -12,9 +12,14 @@ int main(int argc, char *argv[]) {
 }
 
 void libTinyFSTest() {
+	int file1;
+	int file2;
 	tfs_mkfs("testing/test1.bin", 4096);
 	tfs_mount("testing/test1.bin");
-	tfs_openFile("MEOWOWOW");
+	file1 = tfs_openFile("MEOWOWOW");
+	file2 = tfs_openFile("hey");
+	// tfs_closeFile(file1);
+	tfs_closeFile(file2);
 }
 
 void libDiskTest() {

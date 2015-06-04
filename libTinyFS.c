@@ -137,11 +137,14 @@ fileDescriptor tfs_openFile(char *name) {
 	DynamicResource dynamicResource;
 	Inode inode;
 	int inodeBlockNum, FD;
+	char *permName = (char *) malloc(9);
 
 	if(strlen(name) > 8) {
 		printf("Filename must be 8 or less characters.\n");
 		return OPEN_FILE_FAILURE;
 	}
+
+	strcpy(permName, name);
 
 	fileSystemPtr = findFileSystem(mountedFsName);
 
@@ -157,7 +160,7 @@ fileDescriptor tfs_openFile(char *name) {
 
 		//	create new inode and insert it
 		inode = (Inode) {
-			name,
+			permName,
 			0,
 			NULL
 		};
@@ -168,7 +171,7 @@ fileDescriptor tfs_openFile(char *name) {
 	FD = fileSystemPtr->openCount++;
 	
 	dynamicResource = (DynamicResource) {
-		name,
+		permName,
 		0,
 		FD,
 		inodeBlockNum
@@ -212,6 +215,11 @@ int tfs_closeFile(fileDescriptor FD) {
  		return WRITE_FILE_FAILURE;
  	}
 
+ 	if(tfs_deleteFile(FD) < 0) {
+ 		printf("Delete file error\n");
+ 		return WRITE_FILE_FAILURE;
+ 	}
+
  	//	read in inode block
  	if(readBlock(fileSystemPtr->diskNum, dynamicResourcePtr->inodeBlockNum, inodeData) < 0) {
  		return WRITE_FILE_FAILURE;
@@ -219,36 +227,21 @@ int tfs_closeFile(fileDescriptor FD) {
 
  	inodePtr = (Inode *) &inodeData[2];
 
- 	if(inodePtr->size == 0) {
- 		printf("file is empty\n");
- 		blockNum = getFreeBlock(fileSystemPtr);
+	blockNum = getFreeBlock(fileSystemPtr);
 
- 		inodePtr->dataBlocks = malloc(sizeof(BlockNode));
- 		*inodePtr->dataBlocks = (BlockNode) {
- 			blockNum,
- 			NULL
- 		};
+	inodePtr->dataBlocks = malloc(sizeof(BlockNode));
+	*inodePtr->dataBlocks = (BlockNode) {
+		blockNum,
+		NULL
+	};
 
- 		//	write back changes to inode block
-	 	if(writeBlock(fileSystemPtr->diskNum, dynamicResourcePtr->inodeBlockNum, inodeData) < 0) {
-	 		return WRITE_FILE_FAILURE;
-	 	}
+	//	write back changes to inode block
+	if(writeBlock(fileSystemPtr->diskNum, dynamicResourcePtr->inodeBlockNum, inodeData) < 0) {
+		return WRITE_FILE_FAILURE;
+	}
 
- 		currBlock = inodePtr->dataBlocks;
- 	}
- 	else {
- 		blockNum = dynamicResourcePtr->seekOffset / BLOCKSIZE;
- 		printf("file has stuff in it, start writing at block %d\n", blockNum);
-
- 		currBlock = inodePtr->dataBlocks;
-
- 		int blockCount;
- 		for(blockCount = 0; blockCount < blockNum; blockCount++) {
- 			currBlock = currBlock->next;
- 		}
-
- 		printf("made it to block %d\n", currBlock->blockNum);
- 	}
+	currBlock = inodePtr->dataBlocks;
+ 	
 
  	while(written < size) {
  		//	read in data block
@@ -285,23 +278,16 @@ int tfs_closeFile(fileDescriptor FD) {
 		if(size - written > 0) {
 			printf("theres more data, so get another block\n");
 
-			if(currBlock->next == NULL) {
-				printf("need to get another block from free\n");
-				blockNum = getFreeBlock(fileSystemPtr);
-				printf("next free block gotten is %d\n", blockNum);
+			blockNum = getFreeBlock(fileSystemPtr);
+			printf("next free block gotten is %d\n", blockNum);
 
- 				currBlock->next = malloc(sizeof(BlockNode));
- 				*currBlock->next = (BlockNode) {
- 					blockNum,
- 					NULL
- 				};
+			currBlock->next = malloc(sizeof(BlockNode));
+			*currBlock->next = (BlockNode) {
+				blockNum,
+				NULL
+			};
 
- 				currBlock = currBlock->next;
-			}
-			else {
-				currBlock = currBlock->next;
-				printf("moved to block %d\n", currBlock->blockNum);
-			}
+			currBlock = currBlock->next;
 		}
 		printf("have written in total %d bytes\n", written);
  	}
@@ -410,12 +396,13 @@ int tfs_readByte(fileDescriptor FD, char *buffer) {
 	inodePtr = (Inode *)&buf[2];
 
 	if (dynamicResourcePtr->seekOffset > inodePtr->size) {
+		printf("READING PAST FILE\n");
 		return READ_BYTE_FAILURE;
 	}
 	offset = dynamicResourcePtr->seekOffset / (BLOCKSIZE-2);
 	tmpPtr = inodePtr->dataBlocks;
 
-	printf("need to move %d blocks in. seek offset: %d\n", offset, dynamicResourcePtr->seekOffset);
+	//printf("need to move %d blocks in. seek offset: %d\n", offset, dynamicResourcePtr->seekOffset);
 
 	while (offset > 0) {
 		tmpPtr = tmpPtr->next;
@@ -426,12 +413,10 @@ int tfs_readByte(fileDescriptor FD, char *buffer) {
 		return READ_BYTE_FAILURE;
 	}
 
-	offset = dynamicResourcePtr->seekOffset % BLOCKSIZE;
+	offset = dynamicResourcePtr->seekOffset % (BLOCKSIZE-2);
 	offset += 2;
-	//printf("offset to %d in block\n", offset);
 	*buffer = (0xFF) & buf[offset];
 	dynamicResourcePtr->seekOffset++;
-	printf("READ IN %0x\n", *buffer);
 
 	return READ_BYTE_SUCCESS;
 }
@@ -476,7 +461,10 @@ int tfs_rename(char *oldName, char *newName) {
 	int inodeBlockNum;
 
 	if(strlen(newName) > 8) {
-		printf("Filename length must be 8 characters or less\n");
+		return RENAME_FILE_FAILURE;
+	}
+
+	if(strcmp(oldName, "/") == 0) {
 		return RENAME_FILE_FAILURE;
 	}
 
@@ -485,7 +473,6 @@ int tfs_rename(char *oldName, char *newName) {
 	inodeBlockNum = findFile(*fileSystemPtr, oldName);
 
 	if(inodeBlockNum < 0) {
-		printf("File %s not found in current mounted file system\n", oldName);
 		return RENAME_FILE_FAILURE;
 	}
 
@@ -507,7 +494,7 @@ int tfs_readdir() {
 
 	blocks = fileSystemPtr->size / BLOCKSIZE;
 
-	printf("Listing of all files in file system %s\n", fileSystemPtr->filename);
+	printf("Listing all files in file system %s\n", fileSystemPtr->filename);
 
 	for(block = 0; block < blocks; block++) {
 		if((result = readBlock(fileSystemPtr->diskNum, block, data)) < 0) {
@@ -792,7 +779,7 @@ int renameInode(FileSystem *fileSystemPtr, int blockNum, char *newName) {
 
 	inodePtr = (Inode *)&data[2];
 
-	strcpy(inodePtr->name, newName);
+	strcpy(inodePtr->name, "test");
 
 	memcpy(&data[2], inodePtr, sizeof(Inode));
 

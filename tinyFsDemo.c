@@ -13,19 +13,13 @@ int main(int argc, char *argv[]) {
 
 void libTinyFSTest() {
 	char readByte;
-	char big[(BLOCKSIZE * 2) + 12];
+	char *big = calloc(1, (BLOCKSIZE * 2) + 12);
 	big[(BLOCKSIZE * 2) + 11] = 'X';
 	int file1;
 	tfs_mkfs("testing/test1.bin", 4096);
 	tfs_mount("testing/test1.bin");
 	file1 = tfs_openFile("MEOWOWOW");
 	tfs_writeFile(file1, big, (BLOCKSIZE * 2) + 12);
-	tfs_readdir();
-	tfs_rename("MEOWOWOW", "new name");
-	tfs_rename("/", "bad");
-	tfs_rename("new name", "this is too long");
-	tfs_readdir();
-	tfs_deleteFile(file1);
 	tfs_closeFile(file1);
 }
 

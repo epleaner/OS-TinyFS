@@ -18,7 +18,8 @@ void libTinyFSTest() {
 	tfs_mount("testing/test1.bin");
 	file1 = tfs_openFile("MEOWOWOW");
 	file2 = tfs_openFile("hey");
-	tfs_closeFile(file1);
+	// tfs_closeFile(file1);
+	tfs_closeFile(file2);
 }
 
 void libDiskTest() {

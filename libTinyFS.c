@@ -463,10 +463,12 @@ int removeDynamicResource(FileSystem *fileSystem, fileDescriptor FD) {
 				temp = curr;
 				curr = curr->next;
 				free(temp);
+
+				return 1;
 			}
 		}
 		
 		printf("No dynamic resources found with FD %d\n", FD);
-		exit(-1);
+		return -1;
 	}
 }

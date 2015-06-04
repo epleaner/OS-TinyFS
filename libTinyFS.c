@@ -17,6 +17,7 @@ int tfs_rename(char *oldName, char *newName);
 int tfs_readdir();
 int renameInode(FileSystem *fileSystemPtr, int blockNum, char *newName);
 int renameDynamicResource(FileSystem *fileSystemPtr, int inodeBlockNum, char *newName);
+DynamicResource *findResource(DynamicResourceNode *rsrcTable, int fd);
 
 FileSystemNode *fsHead = NULL;
 
@@ -205,8 +206,8 @@ int tfs_writeFile(fileDescriptor FD, char *buffer, int size) {
 		return WRITEBLOCK_FAILURE;
 	}
 
-	iNodePtr = (Inode *)&buf[2];
-	tmpBlock = iNodePtr->dataBlocks;
+	inodePtr = (Inode *)&buf[2];
+	tmpBlock = inodePtr->dataBlocks;
 
 	if (iNodePtr->size == 0) {
 		blockNum = getFreeBlock(*fileSystemPtr);

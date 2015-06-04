@@ -21,11 +21,22 @@ void libTinyFSTest() {
 	tfs_mount("testing/test1.bin");
 	file1 = tfs_openFile("MEOWOWOW");
 	tfs_writeFile(file1, big, (BLOCKSIZE * 2) + 12);
+	tfs_seek(file1, 0);
+	tfs_writeByte(file1, 123);
+	tfs_writeByte(file1, 9);
+	tfs_seek(file1, 0);
+	for (index = 0; index < (BLOCKSIZE*2) +13; index++) {
+		tfs_readByte(file1, &readByte);
+		printf("read in %d\n", (int)readByte);
+	}
+	tfs_readByte(file1, &readByte);
 	tfs_seek(file1, 123);
 	tfs_seek(file1, (BLOCKSIZE * 2) + 13);
 	tfs_seek(file1, (BLOCKSIZE * 2) + 11);
-	tfs_readByte(file1, &readByte);
-	printf("read in %c\n", readByte);
+	tfs_makeRW("MEOWOWOW");
+	tfs_writeByte(file1, 123);
+	//tfs_makeRO("MEOWOWOW");
+	tfs_writeFile(file1, big, (BLOCKSIZE * 2) + 12);
 	//tfs_deleteFile(file1);
 
 	tfs_closeFile(file1);

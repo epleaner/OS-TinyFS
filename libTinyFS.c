@@ -134,7 +134,7 @@ fileDescriptor tfs_openFile(char *name) {
 	FileSystem *fileSystemPtr;
 	DynamicResource dynamicResource;
 	Inode inode;
-	int inodeBlockNum, FD;
+	int inodeBlockNum;
 
 	if(strlen(name) > 8) {
 		printf("Filename must be 8 or less characters.\n");
@@ -162,13 +162,11 @@ fileDescriptor tfs_openFile(char *name) {
 
 		addInode(fileSystemPtr->diskNum, inode, inodeBlockNum);
 	}
-
-	FD = fileSystemPtr->openCount++;
 	
 	dynamicResource = (DynamicResource) {
 		name,
 		0,
-		FD,
+		fileSystemPtr->openCount++,
 		inodeBlockNum
 	};
 
@@ -176,17 +174,12 @@ fileDescriptor tfs_openFile(char *name) {
 		return OPEN_FILE_FAILURE;
 	}
 
-	return FD;
+	return OPEN_FILE_SUCCESS;
 }
 
 /* Closes the file, de-allocates all system/disk resources, and removes table entry */
 int tfs_closeFile(fileDescriptor FD) {
-	FileSystem *fileSystemPtr;
-	DynamicResource *dynamicResourcePtr;
-
-	fileSystemPtr = findFileSystem(mountedFsName);
-
-	return removeDynamicResource(fileSystemPtr, FD);
+	return 0;
 }
 
 /* Writes buffer ‘buffer’ of size ‘size’, which represents an entire file’s content, to 
@@ -194,7 +187,57 @@ int tfs_closeFile(fileDescriptor FD) {
  * success/error codes. 
  */
 int tfs_writeFile(fileDescriptor FD, char *buffer, int size) {
+	FileSystem *fileSystemPtr = findFileSystem(mountedFsName);
+	DynamicResource *dynamicResource = findResource(fileSystemPtr->dynamicResourceTable, FD);
+	char buf[BLOCKSIZE];
+	char writeData[BLOCKSIZE];
+	Inode *inodePtr;
+	int freeBlock;
+	int dataLeft = size;
+	BlockNode *tmpBlock;
+
+	if (dynamicResource == NULL) {
+		return WRITEBLOCK_FAILURE;
+	}
+
+	if (readBlock(fileSystemPtr->diskNum, dynamicResource->inodeBlockNum, buf) != 0) {
+		printf("ERROR...\n");
+	}
+
+	iNodePtr = (Inode *)&buf[2];
+	tmpBlock = iNodePtr->dataBlocks;
+
+	while (dataLeft != 0) {
+
+		if (tmpBlock == NULL) {
+			freeBlock = getFreeBlock(*fileSystemPtr);
+		} else {
+			readBlock(fileSystemPtr->diskNum, tmpBlock->blockNum, writeData);
+			tmpBlock = tmpBlock->next;
+			freeBlock = -1;
+		}
+
+		if (dynamicResource->seekOffset % BLOCKSIZE == 0) {
+
+		} else {
+
+		}
+	}
+
 	return 0;
+}
+
+DynamicResource *findResource(DynamicResourceNode *rsrcTable, int fd) {
+	DynamicResourceNode *tmpHead = rsrcTable;
+
+	while (tmpHead != NULL) {
+		if (tmpHead->dynamicResource->FD == fd) {
+			return (tmpHead->dynamicResource);
+		}
+		tmpHead = tmpHead->next;
+	}
+
+	return NULL;
 }
 
 /* deletes a file and marks its blocks as free on disk.
@@ -484,8 +527,6 @@ int addDynamicResource(FileSystem *fileSystemPtr, DynamicResource dynamicResourc
 			dynamicResourcePtr,
 			NULL
 		};
-
-		fileSystemPtr->dynamicResourceTable = curr;
 	}
 	else {
 		while(curr->next != NULL) curr = curr->next;

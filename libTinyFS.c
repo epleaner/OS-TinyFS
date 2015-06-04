@@ -256,12 +256,68 @@ int tfs_deleteFile(fileDescriptor FD) {
  * file pointer. 
  */
 int tfs_readByte(fileDescriptor FD, char *buffer) {
-	return 0;
+	FileSystem *fileSystemPtr = findFileSystem(mountedFsName);
+	DynamicResourceNode *dynamicResourcePtr = findResource(fileSystemPtr->, FD);
+	Inode *inodePtr;
+	BlockNode *tmpPtr;
+	char buf[BLOCKSIZE];
+	int offset;
+
+	if (dynamicResourcePtr == NULL) {
+		return READ_BYTE_ERROR;
+	}
+
+	if (readBlock(fileSystemPtr->diskNum, dynamicResourcePtr->inodeBlockNum, buf) < 0) {
+		return READ_BYTE_ERROR;
+	}
+
+	inodePtr = (Inode *)&buf[2];
+
+	if (dynamicResourcePtr->offset == inodePtr->size) {
+		return READ_BYTE_ERROR;
+	}
+
+	offset = dynamicResourcePtr->offset / BLOCKSIZE;
+	tmpPtr = iNodePtr->dataBlocks;
+
+	while (offset > 0) {
+		tmpPtr = tmpPtr->next;
+		offset--;
+	}
+
+	if (readBlock(fileSystemPtr->diskNum, tmpPtr->blockNum, buf) < 0) {
+		return READ_BYTE_ERROR;
+	}
+
+	offset = dynamicResourcePtr->offset % BLOCKSIZE;
+	*buffer = buf[offset];
+	dynamicResourcePtr->offset++;
+
+	return READ_BYTE_SUCCESS;
 }
 
 /* change the file pointer location to offset (absolute). Returns success/error codes. */
 int tfs_seek(fileDescriptor FD, int offset) {
-	return 0;
+	FileSystem *fileSystemPtr = findFileSystem(mountedFsName);
+	DynamicResourceNode *dynamicResourcePtr = findResource(fileSystemPtr->, FD);
+	Inode *inodePtr;
+	BlockNode *tmpPtr;
+
+	if (dynamicResourcePtr == NULL) {
+		return SEEK_FILE_FAILURE;
+	}
+	if (readBlock(fileSystemPtr->diskNum, dynamicResource->inodeBlockNum, buf) < 0) {
+		return ERROR;
+	}
+
+	inodePtr = (Inode *)&buf[2];
+	if (offset > iNodePtr->size) {
+		return SEEK_FILE_FAILURE;
+	}
+
+	dynamicResourcePtr->seekOffset = offset;
+
+	return SEEK_FILE_SUCCESS;
 }
 
 /* File listing and renaming */

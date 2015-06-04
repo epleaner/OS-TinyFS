@@ -63,6 +63,7 @@ int tfs_mkfs(char *filename, int nBytes) {
 	rootInode = (Inode) {
 		"/",	//	root's name is slash
 		0,		//	root has file size zero (it's a special inode)
+		READWRITE,
 		NULL	//	root inode doesn't have any data blocks
 	};
 
@@ -162,6 +163,7 @@ fileDescriptor tfs_openFile(char *name) {
 		inode = (Inode) {
 			permName,
 			0,
+			READWRITE,
 			NULL
 		};
 
@@ -226,6 +228,11 @@ int tfs_closeFile(fileDescriptor FD) {
  	}
 
  	inodePtr = (Inode *) &inodeData[2];
+
+ 	if (inodePtr->filePermission == READONLY) {
+ 		printf("Do not have permission to write\n");
+ 		return WRITE_FILE_FAILURE;
+ 	}
 
 	blockNum = getFreeBlock(fileSystemPtr);
 
@@ -318,6 +325,109 @@ DynamicResource *findResource(DynamicResourceNode *rsrcTable, int fd) {
 	return NULL;
 }
 
+//Change the permissions of the file 'name' to READONLY
+int tfs_makeRO(char *name) {
+	FileSystem *fileSystemPtr;
+	char inodeBuf[BLOCKSIZE];
+	int inodeBlockNum;
+	Inode *inodePtr;
+
+	fileSystemPtr = findFileSystem(mountedFsName);
+
+	inodeBlockNum = findFile(*fileSystemPtr, name);
+
+	if (readBlock(fileSystemPtr->diskNum, inodeBlockNum, inodeBuf) < 0) {
+		return MAKE_RO_FAILURE;
+	}
+
+	inodePtr = (Inode *)&inodeBuf[2];
+	printf("file's current perm is %d\n", inodePtr->filePermission);
+	inodePtr->filePermission = READONLY;
+	printf("file's current perm is %d\n", inodePtr->filePermission);
+
+	memcpy(&inodeBuf[2], inodePtr, sizeof(Inode));
+
+	return writeBlock(fileSystemPtr->diskNum, inodeBlockNum, inodeBuf);
+
+}
+//Change the permissions of file 'name' to READWRITE
+int tfs_makeRW(char *name) {
+	FileSystem *fileSystemPtr;
+	char inodeBuf[BLOCKSIZE];
+	int inodeBlockNum;
+	Inode *inodePtr;
+
+	fileSystemPtr = findFileSystem(mountedFsName);
+
+	inodeBlockNum = findFile(*fileSystemPtr, name);
+
+	if (readBlock(fileSystemPtr->diskNum, inodeBlockNum, inodeBuf) < 0) {
+		return MAKE_RW_FAILURE;
+	}
+
+	inodePtr = (Inode *)&inodeBuf[2];
+	printf("file's current perm is %d\n", inodePtr->filePermission);
+	inodePtr->filePermission = READWRITE;
+	printf("file's current perm is %d\n", inodePtr->filePermission);
+	memcpy(&inodeBuf[2], inodePtr, sizeof(Inode));
+
+	return writeBlock(fileSystemPtr->diskNum, inodeBlockNum, inodeBuf);
+
+}
+
+int tfs_writeByte(fileDescriptor FD, unsigned int data) {
+	FileSystem *fileSystemPtr;
+	DynamicResource *dynamicResourcePtr;
+	char inodeData[BLOCKSIZE];
+	char writeData[BLOCKSIZE];
+	Inode *inodePtr;
+	BlockNode *tmpPtr;
+	int offset;
+
+	fileSystemPtr = findFileSystem(mountedFsName);
+	dynamicResourcePtr = findResource(fileSystemPtr->dynamicResourceTable, FD);
+
+	if (dynamicResourcePtr == NULL) {
+		printf("file is not open for writing\n");
+		return -1;
+	}
+
+	if(readBlock(fileSystemPtr->diskNum, dynamicResourcePtr->inodeBlockNum, inodeData) < 0) {
+ 		return -1;
+ 	}
+ 	offset = dynamicResourcePtr->seekOffset / (BLOCKSIZE-2);
+ 	inodePtr = (Inode *)&inodeData[2];
+
+ 	if (inodePtr->filePermission == READONLY) {
+		return DELETE_FILE_FAILURE;
+	}
+
+ 	tmpPtr = inodePtr->dataBlocks;
+
+ 	if (dynamicResourcePtr->seekOffset > inodePtr->size) {
+		printf("READING PAST FILE\n");
+		return READ_BYTE_FAILURE;
+	}
+
+ 	while (offset > 0) {
+ 		tmpPtr = tmpPtr->next;
+ 		offset--;
+ 	}
+
+ 	if (readBlock(fileSystemPtr->diskNum, tmpPtr->blockNum, writeData)) {
+ 		return -1;
+ 	}
+
+ 	offset = dynamicResourcePtr->seekOffset % (BLOCKSIZE-2);
+	offset += 2;
+	writeData[offset] = data;
+
+	dynamicResourcePtr->seekOffset++;
+
+	return writeBlock(fileSystemPtr->diskNum, tmpPtr->blockNum, writeData);
+
+}
+
 /* deletes a file and marks its blocks as free on disk.
  * You can think of deleteFile as equivalent to ftruncate(fd, 0). 
  * So it should be able to be written again.
@@ -341,6 +451,10 @@ int tfs_deleteFile(fileDescriptor FD) {
 	}
 
 	inodePtr = (Inode *)&buf[2];
+
+	if (inodePtr->filePermission == READONLY) {
+		return DELETE_FILE_FAILURE;
+	}
 
 	tmpPtr = inodePtr->dataBlocks;
 

@@ -16,6 +16,7 @@ int removeDynamicResource(FileSystem *fileSystem, fileDescriptor FD);
 int tfs_rename(char *oldName, char *newName);
 int tfs_readdir();
 int renameInode(FileSystem *fileSystemPtr, int blockNum, char *newName);
+int renameDynamicResource(FileSystem *fileSystemPtr, int inodeBlockNum, char *newName);
 
 FileSystemNode *fsHead = NULL;
 
@@ -223,8 +224,14 @@ int tfs_seek(fileDescriptor FD, int offset) {
 
 /* renames a file.  New name should be passed in. */
 int tfs_rename(char *oldName, char *newName) {
+	int result;
 	FileSystem *fileSystemPtr;
 	int inodeBlockNum;
+
+	if(strlen(newName) > 8) {
+		printf("Filename length must be 8 characters or less\n");
+		return RENAME_FILE_FAILURE;
+	}
 
 	fileSystemPtr = findFileSystem(mountedFsName);
 
@@ -235,11 +242,38 @@ int tfs_rename(char *oldName, char *newName) {
 		return RENAME_FILE_FAILURE;
 	}
 
-	return renameInode(fileSystemPtr, inodeBlockNum, newName);
+	if((result = renameInode(fileSystemPtr, inodeBlockNum, newName)) < 0) {
+		return RENAME_FILE_FAILURE;
+	}
+
+	return renameDynamicResource(fileSystemPtr, inodeBlockNum, newName);
 }
 
 /* lists all the files and directories on the disk */
 int tfs_readdir() {
+	char data[BLOCKSIZE];
+	FileSystem *fileSystemPtr;
+	Inode *inodePtr;
+	int block, blocks, result;
+
+	fileSystemPtr = findFileSystem(mountedFsName);
+
+	blocks = fileSystemPtr->size / BLOCKSIZE;
+
+	printf("Listing of all files in file system %s\n", fileSystemPtr->filename);
+
+	for(block = 0; block < blocks; block++) {
+		if((result = readBlock(fileSystemPtr->diskNum, block, data)) < 0) {
+			return result;		//	means error reading block
+		}
+
+		if(data[0] == INODE) {
+			inodePtr = (Inode *)&data[2];
+
+			printf("File: %s\n", inodePtr->name);
+		}
+	}
+
 	return 1;
 }
 
@@ -501,21 +535,42 @@ int removeDynamicResource(FileSystem *fileSystem, fileDescriptor FD) {
 }
 
 int renameInode(FileSystem *fileSystemPtr, int blockNum, char *newName) {
-	char buf[BLOCKSIZE];
+	int result;
+	char data[BLOCKSIZE];
 	Inode *inodePtr;
 
-	// if((result = readBlock(fileSystem.diskNum, block, data)) < 0) {
-	// 	return result;		//	means error reading block
-	// }
+	if((result = readBlock(fileSystemPtr->diskNum, blockNum, data)) < 0) {
+		return result;		//	means error reading block
+	}
 
-	// if(data[0] == INODE) {
-	// 	inodePtr = (Inode *)&data[2];
+	inodePtr = (Inode *)&data[2];
 
-	// 	if(strcmp(inodePtr->name, filename) == 0) {
-	// 		return block;
-	// 	}
-	// }
+	strcpy(inodePtr->name, newName);
 
-	return 1;
+	memcpy(&data[2], inodePtr, sizeof(Inode));
 
+	return writeBlock(fileSystemPtr->diskNum, blockNum, data);
+}
+
+int renameDynamicResource(FileSystem *fileSystemPtr, int inodeBlockNum, char *newName) {
+	DynamicResourceNode *curr = fileSystemPtr->dynamicResourceTable;
+
+	if(fileSystemPtr->openCount == 0) {
+		printf("No open files to rename!\n");
+		return 1;
+	}
+
+	while (curr != NULL) {
+		if(curr->dynamicResource->inodeBlockNum == inodeBlockNum) {
+			printf("Renaming dynamic resource for inode %d to %s\n", inodeBlockNum, newName);
+			strcpy(curr->dynamicResource->name, newName);
+
+			return 1;
+		}
+
+		curr = curr->next;
+	}
+
+	printf("No files with inode %d open\n", inodeBlockNum);
+	return -1;
 }

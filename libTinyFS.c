@@ -302,46 +302,6 @@ int tfs_closeFile(fileDescriptor FD) {
 
  	return WRITE_FILE_SUCCESS;
  }
-// int tfs_writeFile(fileDescriptor FD, char *buffer, int size) {
-// 	FileSystem *fileSystemPtr = findFileSystem(mountedFsName);
-// 	DynamicResource *dynamicResource = findResource(fileSystemPtr->dynamicResourceTable, FD);
-// 	char buf[BLOCKSIZE];
-// 	char writeData[BLOCKSIZE];
-// 	Inode *inodePtr;
-// 	int blockNum;
-// 	int dataLeft = size;
-// 	int offsetBlocks = 0;
-// 	BlockNode *tmpBlock;
-
-// 	if (dynamicResource == NULL) {
-// 		return WRITEBLOCK_FAILURE;
-// 	}
-
-// 	if (readBlock(fileSystemPtr->diskNum, dynamicResource->inodeBlockNum, buf) != 0) {
-// 		return WRITEBLOCK_FAILURE;
-// 	}
-
-// 	inodePtr = (Inode *)&buf[2];
-// 	tmpBlock = inodePtr->dataBlocks;
-
-// 	if (iNodePtr->size == 0) {
-// 		blockNum = getFreeBlock(*fileSystemPtr);
-// 	} else {
-// 		offsetBlocks = dynamicResource->seekOffset / BLOCKSIZE;
-// 		tmpBlock = iNodePtr->dataBlocks;
-// 		while (offsetBlocks > 0) {
-// 			tmpBlock = tmpBlock->next;
-// 			offsetBlocks--;
-// 		}
-// 		blockNum = tmpBlock->blockNum;
-// 	}
-
-// 	while (dataLeft != 0) {
-
-// 	}
-
-// 	return 0;
-// }
 
 DynamicResource *findResource(DynamicResourceNode *rsrcTable, int fd) {
 	DynamicResourceNode *tmpHead = rsrcTable;

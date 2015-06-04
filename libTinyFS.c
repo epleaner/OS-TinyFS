@@ -13,6 +13,9 @@ int getFreeBlock(FileSystem fileSystem);
 int addInode(fileDescriptor diskNum, Inode inode, int blockNum);
 int addDynamicResource(FileSystem *fileSystemPtr, DynamicResource dynamicResource);
 int removeDynamicResource(FileSystem *fileSystem, fileDescriptor FD);
+int tfs_rename(char *oldName, char *newName);
+int tfs_readdir();
+int renameInode(FileSystem *fileSystemPtr, int blockNum, char *newName);
 
 FileSystemNode *fsHead = NULL;
 
@@ -214,6 +217,30 @@ int tfs_readByte(fileDescriptor FD, char *buffer) {
 /* change the file pointer location to offset (absolute). Returns success/error codes. */
 int tfs_seek(fileDescriptor FD, int offset) {
 	return 0;
+}
+
+/* File listing and renaming */
+
+/* renames a file.  New name should be passed in. */
+int tfs_rename(char *oldName, char *newName) {
+	FileSystem *fileSystemPtr;
+	int inodeBlockNum;
+
+	fileSystemPtr = findFileSystem(mountedFsName);
+
+	inodeBlockNum = findFile(*fileSystemPtr, oldName);
+
+	if(inodeBlockNum < 0) {
+		printf("File %s not found in current mounted file system\n", oldName);
+		return RENAME_FILE_FAILURE;
+	}
+
+	return renameInode(fileSystemPtr, inodeBlockNum, newName);
+}
+
+/* lists all the files and directories on the disk */
+int tfs_readdir() {
+	return 1;
 }
 
 int setMagicNumbers(fileDescriptor diskNum, int blocks) {
@@ -471,4 +498,24 @@ int removeDynamicResource(FileSystem *fileSystem, fileDescriptor FD) {
 		printf("No dynamic resources found with FD %d\n", FD);
 		return -1;
 	}
+}
+
+int renameInode(FileSystem *fileSystemPtr, int blockNum, char *newName) {
+	char buf[BLOCKSIZE];
+	Inode *inodePtr;
+
+	// if((result = readBlock(fileSystem.diskNum, block, data)) < 0) {
+	// 	return result;		//	means error reading block
+	// }
+
+	// if(data[0] == INODE) {
+	// 	inodePtr = (Inode *)&data[2];
+
+	// 	if(strcmp(inodePtr->name, filename) == 0) {
+	// 		return block;
+	// 	}
+	// }
+
+	return 1;
+
 }

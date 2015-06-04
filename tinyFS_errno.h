@@ -1,3 +1,4 @@
+#define		RENAME_FILE_SUCCESS	4
 #define		OPEN_FILE_SUCCESS	3
 #define		UNMOUNT_FS_SUCCESS	3
 #define		MOUNT_FS_SUCCESS	2
@@ -10,3 +11,4 @@
 #define 	MAKE_FS_ERROR 		-5
 #define 	FS_VERIFY_FAILURE 	-6
 #define 	OPEN_FILE_FAILURE 	-7
+#define 	RENAME_FILE_FAILURE -8

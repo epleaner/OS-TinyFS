@@ -1,13 +1,11 @@
-<<<<<<< HEAD
-#define		READ_BYTE_SUCCES	6
-#define		SEEK_FILE_SUCCESS	5
-#define		RENAME_FILE_SUCCESS	4
-#define		OPEN_FILE_SUCCESS	3
-=======
+#define		DELETE_FILE_SUCCESS 16
+#define		READ_BYTE_SUCCES	12
+#define		SEEK_FILE_SUCCESS	13
+#define		RENAME_FILE_SUCCESS	14
+#define		OPEN_FILE_SUCCESS	15
 #define		WRITE_FILE_SUCCESS	6
 #define		RENAME_FILE_SUCCESS	5
 #define		OPEN_FILE_SUCCESS	4
->>>>>>> fb3eeab479b15045da5cf5cfc4437c69ccc74f0f
 #define		UNMOUNT_FS_SUCCESS	3
 #define		MOUNT_FS_SUCCESS	2
 #define		MAKE_FS_SUCCESS		1
@@ -20,10 +18,9 @@
 #define 	FS_VERIFY_FAILURE 	-6
 #define 	OPEN_FILE_FAILURE 	-7
 #define 	RENAME_FILE_FAILURE -8
-<<<<<<< HEAD
-#define		SEEK_FILE_FAILURE	-9
+
+#define		SEEK_FILE_FAILURE	-11
 #define		READ_BYTE_FAILURE	-10
-=======
+#define		DELETE_FILE_FAILURE	-12
 #define 	WRITE_FILE_FAILURE 	-9
 
->>>>>>> fb3eeab479b15045da5cf5cfc4437c69ccc74f0f

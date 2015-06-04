@@ -322,7 +322,40 @@ DynamicResource *findResource(DynamicResourceNode *rsrcTable, int fd) {
  * So then free its blocks but don't delete its inode.
  */
 int tfs_deleteFile(fileDescriptor FD) {
-	return 0;
+	FileSystem *fileSystemPtr = findFileSystem(mountedFsName);
+	DynamicResourceNode *dynamicResourcePtr = findResource(fileSystemPtr->dynamicResourceTable, FD);
+	Inode *inodePtr;
+	BlockNode *tmpPtr;
+	char buf[BLOCKSIZE];
+	char clearBuf = calloc(1, BLOCKSIZE);
+	int offset;
+
+	if (dynamicResourcePtr == NULL) {
+		return DELETE_FILE_FAILURE;
+	}
+
+	if (readBlock(fileSystemPtr->diskNum, dynamicResourcePtr->inodeBlockNum, buf) < 0) {
+		return DELETE_FILE_FAILURE;
+	}
+
+	inodePtr = (Inode *)&buf[2];
+
+	offset = dynamicResourcePtr->offset / BLOCKSIZE;
+	tmpPtr = iNodePtr->dataBlocks;
+
+	memset(&clearBuf[0], FREE, 1);
+	memset(&clearBuf[1], MAGIC_NUMBER, 1);
+
+	writeBlock(fileSystemPtr->diskNum, tmpPtr->blockNum, clearBuf);
+
+	while (offset > 0) {
+		tmpPtr = tmpPtr->next;
+		writeBlock(fileSystemPtr->diskNum, tmpPtr->blockNum, clearBuf);
+		offset--;
+	}
+
+	iNodePtr->size = 0;
+	return DELETE_FILE_SUCCESS;
 }
 
 /* reads one byte from the file and copies it to buffer, using the current file pointer 
@@ -332,7 +365,7 @@ int tfs_deleteFile(fileDescriptor FD) {
  */
 int tfs_readByte(fileDescriptor FD, char *buffer) {
 	FileSystem *fileSystemPtr = findFileSystem(mountedFsName);
-	DynamicResourceNode *dynamicResourcePtr = findResource(fileSystemPtr->, FD);
+	DynamicResourceNode *dynamicResourcePtr = findResource(fileSystemPtr->dynamicResourceTable, FD);
 	Inode *inodePtr;
 	BlockNode *tmpPtr;
 	char buf[BLOCKSIZE];
@@ -374,7 +407,7 @@ int tfs_readByte(fileDescriptor FD, char *buffer) {
 /* change the file pointer location to offset (absolute). Returns success/error codes. */
 int tfs_seek(fileDescriptor FD, int offset) {
 	FileSystem *fileSystemPtr = findFileSystem(mountedFsName);
-	DynamicResourceNode *dynamicResourcePtr = findResource(fileSystemPtr->, FD);
+	DynamicResourceNode *dynamicResourcePtr = findResource(fileSystemPtr->dynamicResourceTable, FD);
 	Inode *inodePtr;
 	BlockNode *tmpPtr;
 

@@ -182,7 +182,12 @@ fileDescriptor tfs_openFile(char *name) {
 
 /* Closes the file, de-allocates all system/disk resources, and removes table entry */
 int tfs_closeFile(fileDescriptor FD) {
-	return 0;
+	FileSystem *fileSystemPtr;
+	DynamicResource *dynamicResourcePtr;
+
+	fileSystemPtr = findFileSystem(mountedFsName);
+
+	return removeDynamicResource(fileSystemPtr, FD);
 }
 
 /* Writes buffer ‘buffer’ of size ‘size’, which represents an entire file’s content, to 

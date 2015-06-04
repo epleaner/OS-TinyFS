@@ -12,12 +12,12 @@ int main(int argc, char *argv[]) {
 }
 
 void libTinyFSTest() {
+	char big[(BLOCKSIZE * 2) + 12];
 	int file1;
-	int file2;
 	tfs_mkfs("testing/test1.bin", 4096);
 	tfs_mount("testing/test1.bin");
 	file1 = tfs_openFile("MEOWOWOW");
-	tfs_readdir();
+	tfs_writeFile(file1, big, (BLOCKSIZE * 2) + 12);
 	tfs_closeFile(file1);
 }
 

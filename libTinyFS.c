@@ -9,7 +9,7 @@ void addFileSystem(FileSystem fileSystem);
 FileSystem *findFileSystem(char *filename);
 int verifyFileSystem(FileSystem fileSystem);
 int findFile(FileSystem fileSystem, char *filename);
-int getFreeBlock(FileSystem fileSystem);
+int getFreeBlock(FileSystem *fileSystemPtr);
 int addInode(fileDescriptor diskNum, Inode inode, int blockNum);
 int addDynamicResource(FileSystem *fileSystemPtr, DynamicResource dynamicResource);
 int removeDynamicResource(FileSystem *fileSystem, fileDescriptor FD);
@@ -135,7 +135,7 @@ fileDescriptor tfs_openFile(char *name) {
 	FileSystem *fileSystemPtr;
 	DynamicResource dynamicResource;
 	Inode inode;
-	int inodeBlockNum;
+	int inodeBlockNum, FD;
 
 	if(strlen(name) > 8) {
 		printf("Filename must be 8 or less characters.\n");
@@ -147,7 +147,7 @@ fileDescriptor tfs_openFile(char *name) {
 	if((inodeBlockNum = findFile(*fileSystemPtr, name)) < 0) {
 
 		//	file doesn't exist so create inode
-		inodeBlockNum = getFreeBlock(*fileSystemPtr);
+		inodeBlockNum = getFreeBlock(fileSystemPtr);
 
 		//	error getting free block
 		if(inodeBlockNum < 0) {
@@ -163,11 +163,13 @@ fileDescriptor tfs_openFile(char *name) {
 
 		addInode(fileSystemPtr->diskNum, inode, inodeBlockNum);
 	}
+
+	FD = fileSystemPtr->openCount++;
 	
 	dynamicResource = (DynamicResource) {
 		name,
 		0,
-		fileSystemPtr->openCount++,
+		FD,
 		inodeBlockNum
 	};
 
@@ -175,7 +177,7 @@ fileDescriptor tfs_openFile(char *name) {
 		return OPEN_FILE_FAILURE;
 	}
 
-	return OPEN_FILE_SUCCESS;
+	return FD;
 }
 
 /* Closes the file, de-allocates all system/disk resources, and removes table entry */
@@ -187,46 +189,159 @@ int tfs_closeFile(fileDescriptor FD) {
  * the file system. Sets the file pointer to 0 (the start of file) when done. Returns 
  * success/error codes. 
  */
-int tfs_writeFile(fileDescriptor FD, char *buffer, int size) {
-	FileSystem *fileSystemPtr = findFileSystem(mountedFsName);
-	DynamicResource *dynamicResource = findResource(fileSystemPtr->dynamicResourceTable, FD);
-	char buf[BLOCKSIZE];
-	char writeData[BLOCKSIZE];
-	Inode *inodePtr;
-	int blockNum;
-	int dataLeft = size;
-	int offsetBlocks = 0;
-	BlockNode *tmpBlock;
+ int tfs_writeFile(fileDescriptor FD, char *buffer, int size) {
+ 	FileSystem *fileSystemPtr;
+ 	DynamicResource *dynamicResourcePtr;
+ 	Inode *inodePtr;
+ 	BlockNode *currBlock;
+ 	char inodeData[BLOCKSIZE], data[BLOCKSIZE];
+ 	int blockNum, written = 0, writeSize, blockOffset;
 
-	if (dynamicResource == NULL) {
-		return WRITEBLOCK_FAILURE;
-	}
+ 	fileSystemPtr = findFileSystem(mountedFsName);
+ 	dynamicResourcePtr = findResource(fileSystemPtr->dynamicResourceTable, FD);
 
-	if (readBlock(fileSystemPtr->diskNum, dynamicResource->inodeBlockNum, buf) != 0) {
-		return WRITEBLOCK_FAILURE;
-	}
+ 	//	dynamic resource doesnt exist, which means file isn't open
+ 	if(dynamicResourcePtr == NULL) {
+ 		printf("File %d is not open to write.\n", FD);
+ 		return WRITE_FILE_FAILURE;
+ 	}
 
-	inodePtr = (Inode *)&buf[2];
-	tmpBlock = inodePtr->dataBlocks;
+ 	//	read in inode block
+ 	if(readBlock(fileSystemPtr->diskNum, dynamicResourcePtr->inodeBlockNum, inodeData) < 0) {
+ 		return WRITE_FILE_FAILURE;
+ 	}
 
-	if (iNodePtr->size == 0) {
-		blockNum = getFreeBlock(*fileSystemPtr);
-	} else {
-		offsetBlocks = dynamicResource->seekOffset / BLOCKSIZE;
-		tmpBlock = iNodePtr->dataBlocks;
-		while (offsetBlocks > 0) {
-			tmpBlock = tmpBlock->next;
-			offsetBlocks--;
+ 	inodePtr = (Inode *) &inodeData[2];
+
+ 	if(inodePtr->size == 0) {
+ 		printf("file is empty\n");
+ 		blockNum = getFreeBlock(fileSystemPtr);
+
+ 		inodePtr->dataBlocks = malloc(sizeof(BlockNode));
+ 		*inodePtr->dataBlocks = (BlockNode) {
+ 			blockNum,
+ 			NULL
+ 		};
+
+ 		currBlock = inodePtr->dataBlocks;
+ 	}
+ 	else {
+ 		blockNum = dynamicResourcePtr->seekOffset / BLOCKSIZE;
+ 		printf("file has stuff in it, start writing at block %d\n", blockNum);
+
+ 		currBlock = inodePtr->dataBlocks;
+
+ 		int blockCount;
+ 		for(blockCount = 0; blockCount < blockNum; blockCount++) {
+ 			currBlock = currBlock->next;
+ 		}
+
+ 		printf("made it to block %d\n", currBlock->blockNum);
+ 	}
+
+ 	printf("artifically seeking 100 ahead\n");
+ 	dynamicResourcePtr->seekOffset = 100;
+
+ 	while(written < size) {
+ 		//	read in data block
+	 	if(readBlock(fileSystemPtr->diskNum, blockNum, data) < 0) {
+	 		return WRITE_FILE_FAILURE;
+	 	}
+
+	 	//	set block to file extent
+		memset(&data[0], FILE_EXTENT, 1);
+
+		//	get offset into block (minus two to account for reserved first two bytes)
+		blockOffset = dynamicResourcePtr->seekOffset % (BLOCKSIZE - 2);
+
+		//	how much to write this time, minus two for first two bytes
+		writeSize = BLOCKSIZE - blockOffset - 2;
+
+		//	adjust for when there is not much data left to write
+		if(size - written < writeSize) writeSize = size - written;
+
+		printf("will write %d from buffer at block offset %d into block num %d\n", writeSize, blockOffset + 2, currBlock->blockNum);
+
+		//	write buffer into data that will go into block
+		memcpy(&data[2 + blockOffset], buffer, writeSize);
+
+		//	write data into block
+		if(writeBlock(fileSystemPtr->diskNum, currBlock->blockNum, data) < 0) {
+	 		return WRITE_FILE_FAILURE;
+	 	}
+
+		written += writeSize;
+		buffer += writeSize;
+		dynamicResourcePtr->seekOffset += writeSize;
+
+		if(size - written > 0) {
+			printf("theres more data, so get another block\n");
+
+			if(currBlock->next == NULL) {
+				printf("need to get another block from free\n");
+				blockNum = getFreeBlock(fileSystemPtr);
+				printf("next free block gotten is %d\n", blockNum);
+
+ 				currBlock->next = malloc(sizeof(BlockNode));
+ 				*currBlock->next = (BlockNode) {
+ 					blockNum,
+ 					NULL
+ 				};
+
+ 				currBlock = currBlock->next;
+			}
+			else {
+				currBlock = currBlock->next;
+				printf("moved to block %d\n", currBlock->blockNum);
+			}
 		}
-		blockNum = tmpBlock->blockNum;
-	}
+		printf("have written in total %d bytes\n", written);
+ 	}
 
-	while (dataLeft != 0) {
+ 	dynamicResourcePtr->seekOffset = 0;
 
-	}
+ 	return WRITE_FILE_SUCCESS;
+ }
+// int tfs_writeFile(fileDescriptor FD, char *buffer, int size) {
+// 	FileSystem *fileSystemPtr = findFileSystem(mountedFsName);
+// 	DynamicResource *dynamicResource = findResource(fileSystemPtr->dynamicResourceTable, FD);
+// 	char buf[BLOCKSIZE];
+// 	char writeData[BLOCKSIZE];
+// 	Inode *inodePtr;
+// 	int blockNum;
+// 	int dataLeft = size;
+// 	int offsetBlocks = 0;
+// 	BlockNode *tmpBlock;
 
-	return 0;
-}
+// 	if (dynamicResource == NULL) {
+// 		return WRITEBLOCK_FAILURE;
+// 	}
+
+// 	if (readBlock(fileSystemPtr->diskNum, dynamicResource->inodeBlockNum, buf) != 0) {
+// 		return WRITEBLOCK_FAILURE;
+// 	}
+
+// 	inodePtr = (Inode *)&buf[2];
+// 	tmpBlock = inodePtr->dataBlocks;
+
+// 	if (iNodePtr->size == 0) {
+// 		blockNum = getFreeBlock(*fileSystemPtr);
+// 	} else {
+// 		offsetBlocks = dynamicResource->seekOffset / BLOCKSIZE;
+// 		tmpBlock = iNodePtr->dataBlocks;
+// 		while (offsetBlocks > 0) {
+// 			tmpBlock = tmpBlock->next;
+// 			offsetBlocks--;
+// 		}
+// 		blockNum = tmpBlock->blockNum;
+// 	}
+
+// 	while (dataLeft != 0) {
+
+// 	}
+
+// 	return 0;
+// }
 
 DynamicResource *findResource(DynamicResourceNode *rsrcTable, int fd) {
 	DynamicResourceNode *tmpHead = rsrcTable;
@@ -485,15 +600,15 @@ int findFile(FileSystem fileSystem, char *filename) {
 	return -1;
 }
 
-int getFreeBlock(FileSystem fileSystem) {
+int getFreeBlock(FileSystem *fileSystemPtr) {
 	int freeBlockNum;
 
-	if(fileSystem.superblock.freeBlocks == NULL) {
+	if(fileSystemPtr->superblock.freeBlocks == NULL) {
 		return -1;
 	}
 
-	freeBlockNum = fileSystem.superblock.freeBlocks->blockNum;
-	fileSystem.superblock.freeBlocks = fileSystem.superblock.freeBlocks->next;
+	freeBlockNum = fileSystemPtr->superblock.freeBlocks->blockNum;
+	fileSystemPtr->superblock.freeBlocks = fileSystemPtr->superblock.freeBlocks->next;
 
 	return freeBlockNum;
 }
@@ -528,6 +643,8 @@ int addDynamicResource(FileSystem *fileSystemPtr, DynamicResource dynamicResourc
 			dynamicResourcePtr,
 			NULL
 		};
+
+		fileSystemPtr->dynamicResourceTable = curr;
 	}
 	else {
 		while(curr->next != NULL) curr = curr->next;

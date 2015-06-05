@@ -206,6 +206,10 @@ fileDescriptor tfs_openFile(char *name) {
 			accessTimestamp
 		};
 
+		inode.creationTimestamp = creationTimestamp;
+		inode.modificationTimestamp = modificationTimestamp;
+		inode.accessTimestamp = accessTimestamp;
+
 		addInode(fileSystemPtr->diskNum, inode, inodeBlockNum);
 	}
 
@@ -229,8 +233,25 @@ fileDescriptor tfs_openFile(char *name) {
 int tfs_closeFile(fileDescriptor FD) {
 	FileSystem *fileSystemPtr;
 	DynamicResource *dynamicResourcePtr;
+	char *modificationTimestamp;
+	modificationTimestamp = (char *) malloc(30);
+	char buf[BLOCKSIZE];
+	Inode *inodePtr;
 
+	getCurrentTime(modificationTimestamp);
 	fileSystemPtr = findFileSystem(mountedFsName);
+	dynamicResourcePtr = findResource(fileSystemPtr->dynamicResourceTable, FD);
+
+	if (readBlock(fileSystemPtr->diskNum, dynamicResourcePtr->inodeBlockNum, buf) < 0) {
+		return CLOSE_FILE_FAILURE;
+	}
+
+	inodePtr = (Inode *)&buf[2];
+	inodePtr->modificationTimestamp = modificationTimestamp;
+
+	if (writeBlock(fileSystemPtr->diskNum, dynamicResourcePtr->inodeBlockNum, inodePtr) < 0) {
+		return CLOSE_FILE_FAILURE;
+	}
 
 	if(fileSystemPtr == NULL) {
 		return CLOSE_FILE_FAILURE;
@@ -250,6 +271,9 @@ int tfs_closeFile(fileDescriptor FD) {
  	BlockNode *currBlock;
  	char inodeData[BLOCKSIZE], data[BLOCKSIZE];
  	int blockNum, written = 0, writeSize, blockOffset;
+ 	char *modificationTimestamp;
+ 	modificationTimestamp = (char *) malloc(30);
+ 	getCurrentTime(modificationTimestamp);
 
  	fileSystemPtr = findFileSystem(mountedFsName);
 
@@ -274,6 +298,11 @@ int tfs_closeFile(fileDescriptor FD) {
  	}
 
  	inodePtr = (Inode *) &inodeData[2];
+ 	inodePtr->modificationTimestamp = modificationTimestamp;
+
+ 	if (writeBlock(fileSystemPtr->diskNum, dynamicResourcePtr->inodeBlockNum, inodePtr) < 0) {
+ 		return WRITE_FILE_FAILURE;
+ 	}
 
  	if (inodePtr->filePermission == READONLY) {
  		return WRITE_FILE_FAILURE;
@@ -286,11 +315,6 @@ int tfs_closeFile(fileDescriptor FD) {
 		blockNum,
 		NULL
 	};
-
-	//	write back changes to inode block
-	if(writeBlock(fileSystemPtr->diskNum, dynamicResourcePtr->inodeBlockNum, inodeData) < 0) {
-		return WRITE_FILE_FAILURE;
-	}
 
 	currBlock = inodePtr->dataBlocks;
  	
@@ -367,7 +391,10 @@ int tfs_makeRO(char *name) {
 	FileSystem *fileSystemPtr;
 	char inodeBuf[BLOCKSIZE];
 	int inodeBlockNum;
+	char *modificationTimestamp;
+	modificationTimestamp = (char *)malloc(30);
 	Inode *inodePtr;
+	getCurrentTime(modificationTimestamp);
 
 	fileSystemPtr = findFileSystem(mountedFsName);
 
@@ -382,6 +409,11 @@ int tfs_makeRO(char *name) {
 	}
 
 	inodePtr = (Inode *)&inodeBuf[2];
+<<<<<<< HEAD
+	inodePtr->modificationTimestamp = modificationTimestamp;
+	printf("file's current perm is %d\n", inodePtr->filePermission);
+=======
+>>>>>>> fc2c3cf76d3dcffff9a0a2086ce318cbf6b4af64
 	inodePtr->filePermission = READONLY;
 
 	memcpy(&inodeBuf[2], inodePtr, sizeof(Inode));
@@ -398,13 +430,19 @@ int tfs_makeRW(char *name) {
 	char inodeBuf[BLOCKSIZE];
 	int inodeBlockNum;
 	Inode *inodePtr;
+	char *modificationTimestamp;
+	modificationTimestamp = (char *) malloc(30);
+	getCurrentTime(modificationTimestamp);
 
 	fileSystemPtr = findFileSystem(mountedFsName);
+<<<<<<< HEAD
+=======
 
 	if(fileSystemPtr == NULL) {
 		return MAKE_RW_FAILURE;
 	}
 
+>>>>>>> 1c248e29e5c7d94becc6dd15d294ba35040d9cf3
 	inodeBlockNum = findFile(*fileSystemPtr, name);
 
 	if (readBlock(fileSystemPtr->diskNum, inodeBlockNum, inodeBuf) < 0) {
@@ -412,6 +450,11 @@ int tfs_makeRW(char *name) {
 	}
 
 	inodePtr = (Inode *)&inodeBuf[2];
+<<<<<<< HEAD
+	inodePtr->modificationTimestamp = modificationTimestamp;
+	printf("file's current perm is %d\n", inodePtr->filePermission);
+=======
+>>>>>>> fc2c3cf76d3dcffff9a0a2086ce318cbf6b4af64
 	inodePtr->filePermission = READWRITE;
 	memcpy(&inodeBuf[2], inodePtr, sizeof(Inode));
 
@@ -427,9 +470,14 @@ int tfs_writeByte(fileDescriptor FD, unsigned int data) {
 	DynamicResource *dynamicResourcePtr;
 	char inodeData[BLOCKSIZE];
 	char writeData[BLOCKSIZE];
+	char timeInode[BLOCKSIZE];
 	Inode *inodePtr;
 	BlockNode *tmpPtr;
 	int offset;
+	char *modificationTimestamp;
+	modificationTimestamp = (char *) malloc(30);
+
+	getCurrentTime(modificationTimestamp);
 
 	fileSystemPtr = findFileSystem(mountedFsName);
 
@@ -448,6 +496,7 @@ int tfs_writeByte(fileDescriptor FD, unsigned int data) {
  	}
  	offset = dynamicResourcePtr->seekOffset / (BLOCKSIZE-2);
  	inodePtr = (Inode *)&inodeData[2];
+ 	inodePtr->modificationTimestamp = modificationTimestamp;
 
  	if (inodePtr->filePermission == READONLY) {
 		return WRITE_BYTE_FAILURE;
@@ -458,6 +507,10 @@ int tfs_writeByte(fileDescriptor FD, unsigned int data) {
  	if (dynamicResourcePtr->seekOffset >= inodePtr->size) {
 		return READ_BYTE_FAILURE;
 	}
+	memcpy(&timeInode[2], inodePtr, sizeof(Inode));
+	if (writeBlock(fileSystemPtr->diskNum, dynamicResourcePtr->inodeBlockNum, timeInode) < 0) {
+ 		return READ_BYTE_FAILURE;
+ 	}
 
  	while (offset > 0) {
  		tmpPtr = tmpPtr->next;
@@ -497,7 +550,14 @@ int tfs_deleteFile(fileDescriptor FD) {
 	Inode *inodePtr;
 	BlockNode *tmpPtr;
 	char buf[BLOCKSIZE];
+	char timeInode[BLOCKSIZE];
 	char *clearBuf = calloc(1, BLOCKSIZE);
+<<<<<<< HEAD
+	char *modificationTimestamp;
+	modificationTimestamp = (char *) malloc(30);
+	printf("ATTEMPTING TO DELETE FILE\n");
+=======
+>>>>>>> 1c248e29e5c7d94becc6dd15d294ba35040d9cf3
 
 	if (dynamicResourcePtr == NULL) {
 		return DELETE_FILE_FAILURE;
@@ -509,7 +569,15 @@ int tfs_deleteFile(fileDescriptor FD) {
 
 	inodePtr = (Inode *)&buf[2];
 
+	getCurrentTime(modificationTimestamp);
+
 	if (inodePtr->filePermission == READONLY) {
+		return DELETE_FILE_FAILURE;
+	}
+	inodePtr->modificationTimestamp = modificationTimestamp;
+	memcpy(&timeInode[2], inodePtr, sizeof(Inode));
+
+	if (writeBlock(fileSystemPtr->diskNum, dynamicResourcePtr->inodeBlockNum, timeInode) < 0) {
 		return DELETE_FILE_FAILURE;
 	}
 
@@ -558,7 +626,12 @@ int tfs_readByte(fileDescriptor FD, char *buffer) {
 	Inode *inodePtr;
 	BlockNode *tmpPtr;
 	char buf[BLOCKSIZE];
+	char timeInode[BLOCKSIZE];
 	int offset;
+	char *accessTimestamp;
+	accessTimestamp = (char *) malloc(30);
+
+	getCurrentTime(accessTimestamp);
 
 	if (dynamicResourcePtr == NULL) {
 		return READ_BYTE_FAILURE;
@@ -569,6 +642,12 @@ int tfs_readByte(fileDescriptor FD, char *buffer) {
 	}
 
 	inodePtr = (Inode *)&buf[2];
+
+	inodePtr->accessTimestamp = accessTimestamp;
+	memcpy(&timeInode[2], inodePtr, sizeof(Inode));
+	if (writeBlock(fileSystemPtr->diskNum, dynamicResourcePtr->inodeBlockNum, timeInode) < 0) {
+		return READ_BYTE_FAILURE;
+	}
 
 	if (dynamicResourcePtr->seekOffset > inodePtr->size) {
 		return READ_BYTE_FAILURE;
@@ -980,12 +1059,17 @@ int renameInode(FileSystem *fileSystemPtr, int blockNum, char *newName) {
 	int result;
 	char data[BLOCKSIZE];
 	Inode *inodePtr;
+	char *modificationTimestamp;
+	//modificationTimestamp = (char *) malloc(30);
+
+	//getCurrentTime(modificationTimestamp);
 
 	if((result = readBlock(fileSystemPtr->diskNum, blockNum, data)) < 0) {
 		return result;		//	means error reading block
 	}
 
 	inodePtr = (Inode *)&data[2];
+	//inodePtr->modificationTimestamp = modificationTimestamp;
 
 	strcpy(inodePtr->name, "test");
 

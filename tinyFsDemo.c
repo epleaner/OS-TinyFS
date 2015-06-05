@@ -220,12 +220,14 @@ void libTinyFSTest() {
 	tfs_writeFile(file1, big, (BLOCKSIZE * 2) + 12);
 	tfs_makeRO("MEOWOWOW");
 	tfs_writeFile(file1, big, (BLOCKSIZE * 2) + 12);
+	tfs_readFileInfo(file1);
 	tfs_seek(file1, 0);
 	tfs_writeByte(file1, 123);
 	tfs_writeByte(file1, 9);
 	tfs_seek(file1, 0);
 	tfs_readByte(file1, &readByte);
 	tfs_seek(file1, 123);
+	tfs_readFileInfo(file1);
 	tfs_seek(file1, (BLOCKSIZE * 2) + 13);
 	tfs_seek(file1, (BLOCKSIZE * 2) + 11);
 	tfs_makeRW("MEOWOWOW");
@@ -233,6 +235,7 @@ void libTinyFSTest() {
 	//tfs_makeRO("MEOWOWOW");
 	tfs_writeFile(file1, big, (BLOCKSIZE * 2) + 12);
 	//tfs_deleteFile(file1);
+	tfs_readFileInfo(file1);
 
 	tfs_closeFile(file1);
 }

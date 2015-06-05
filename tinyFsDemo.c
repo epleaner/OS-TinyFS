@@ -206,7 +206,7 @@ void timeStampDemo() {
 
 	sleep(2);
 
-	printf("Updating file 1 modify time...\n\n");
+	printf("Updating file 1 modify time while changing permissions...\n\n");
 	tfs_makeRW("File 1");
 
 	tfs_readFileInfo(file1);
@@ -217,10 +217,29 @@ void timeStampDemo() {
 
 	tfs_writeFile(file2, "write to closed", sizeof("write to closed"));
 	tfs_seek(file2, 0);
-	
-	printf("Updating file 2 access and modify time...\n\n");
-	tfs_readByte(file2, &readByteBuffer);
 
+	printf("Updating file 2 modify time when writing to file...\n\n");
 	tfs_readFileInfo(file2);
 
+	printf("\nSleeping for 2 seconds...\n\n");
+	sleep(2);
+	tfs_readByte(file2, &readByteBuffer);
+
+	printf("Updating file 2 access time when reading a byte...\n\n");
+	tfs_readFileInfo(file2);
+
+	printf("\nSleeping for 2 seconds...\n\n");
+	sleep(2);
+	tfs_rename("File 1", "File 3");
+
+	printf("Updating file 1 modify time when changing file name...\n\n");
+	tfs_readFileInfo(file1);
+
+	printf("\nSleeping for 2 seconds...\n\n");
+	sleep(2);
+
+	tfs_deleteFile(file2);
+
+	printf("Updating file 2 modify time when deleting file...\n\n");
+	tfs_readFileInfo(file2);
 }

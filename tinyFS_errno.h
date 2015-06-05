@@ -26,13 +26,9 @@
 #define 	WRITE_FILE_FAILURE 	-9
 #define		MAKE_RO_FAILURE		-13
 #define		MAKE_RW_FAILURE		-14
-<<<<<<< HEAD
-
-#define		CLOSE_FILE_FAILURE	-15
-=======
->>>>>>> d0bc94d11ea4c1261b2f4d716adfbbdac94356bc
 #define		MOUNT_FS_FAILURE	-15
 #define		UNMOUNT_FS_FAILURE	-16
+#define		CLOSE_FILE_FAILURE	-17
 #define		WRITE_BYTE_FAILURE	-18
 #define		READ_FILE_INFO_FAILURE	-19
 #define		READ_DIR_FAILURE	-20

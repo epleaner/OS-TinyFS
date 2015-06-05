@@ -409,15 +409,20 @@ int tfs_makeRO(char *name) {
 	}
 
 	inodePtr = (Inode *)&inodeBuf[2];
+<<<<<<< HEAD
 	inodePtr->modificationTimestamp = modificationTimestamp;
 	printf("file's current perm is %d\n", inodePtr->filePermission);
+=======
+>>>>>>> fc2c3cf76d3dcffff9a0a2086ce318cbf6b4af64
 	inodePtr->filePermission = READONLY;
-	printf("file's current perm is %d\n", inodePtr->filePermission);
 
 	memcpy(&inodeBuf[2], inodePtr, sizeof(Inode));
 
-	return writeBlock(fileSystemPtr->diskNum, inodeBlockNum, inodeBuf);
-
+	if (writeBlock(fileSystemPtr->diskNum, inodeBlockNum, inodeBuf) < 0) {
+		return MAKE_RO_FAILURE;
+	}
+	
+	return MAKE_RO_SUCCESS;
 }
 //Change the permissions of file 'name' to READWRITE
 int tfs_makeRW(char *name) {
@@ -445,14 +450,19 @@ int tfs_makeRW(char *name) {
 	}
 
 	inodePtr = (Inode *)&inodeBuf[2];
+<<<<<<< HEAD
 	inodePtr->modificationTimestamp = modificationTimestamp;
 	printf("file's current perm is %d\n", inodePtr->filePermission);
+=======
+>>>>>>> fc2c3cf76d3dcffff9a0a2086ce318cbf6b4af64
 	inodePtr->filePermission = READWRITE;
-	printf("file's current perm is %d\n", inodePtr->filePermission);
 	memcpy(&inodeBuf[2], inodePtr, sizeof(Inode));
 
-	return writeBlock(fileSystemPtr->diskNum, inodeBlockNum, inodeBuf);
+	if(writeBlock(fileSystemPtr->diskNum, inodeBlockNum, inodeBuf) < 0) {
+		return MAKE_RW_FAILURE;
+	}
 
+	return MAKE_RW_SUCCESS;
 }
 
 int tfs_writeByte(fileDescriptor FD, unsigned int data) {
@@ -478,23 +488,23 @@ int tfs_writeByte(fileDescriptor FD, unsigned int data) {
 	dynamicResourcePtr = findResource(fileSystemPtr->dynamicResourceTable, FD);
 
 	if (dynamicResourcePtr == NULL) {
-		return -1;
+		return WRITE_BYTE_FAILURE;
 	}
 
 	if(readBlock(fileSystemPtr->diskNum, dynamicResourcePtr->inodeBlockNum, inodeData) < 0) {
- 		return -1;
+ 		return WRITE_BYTE_FAILURE;
  	}
  	offset = dynamicResourcePtr->seekOffset / (BLOCKSIZE-2);
  	inodePtr = (Inode *)&inodeData[2];
  	inodePtr->modificationTimestamp = modificationTimestamp;
 
  	if (inodePtr->filePermission == READONLY) {
-		return DELETE_FILE_FAILURE;
+		return WRITE_BYTE_FAILURE;
 	}
 
  	tmpPtr = inodePtr->dataBlocks;
 
- 	if (dynamicResourcePtr->seekOffset > inodePtr->size) {
+ 	if (dynamicResourcePtr->seekOffset >= inodePtr->size) {
 		return READ_BYTE_FAILURE;
 	}
 	memcpy(&timeInode[2], inodePtr, sizeof(Inode));
@@ -508,7 +518,7 @@ int tfs_writeByte(fileDescriptor FD, unsigned int data) {
  	}
 
  	if (readBlock(fileSystemPtr->diskNum, tmpPtr->blockNum, writeData)) {
- 		return -1;
+ 		return WRITE_BYTE_FAILURE;
  	}
 
  	offset = dynamicResourcePtr->seekOffset % (BLOCKSIZE-2);
@@ -517,8 +527,11 @@ int tfs_writeByte(fileDescriptor FD, unsigned int data) {
 
 	dynamicResourcePtr->seekOffset++;
 
-	return writeBlock(fileSystemPtr->diskNum, tmpPtr->blockNum, writeData);
+	if(writeBlock(fileSystemPtr->diskNum, tmpPtr->blockNum, writeData) < 0) {
+		return WRITE_BYTE_FAILURE;
+	}
 
+	return WRITE_BYTE_SUCCESS;
 }
 
 /* deletes a file and marks its blocks as free on disk.
@@ -685,7 +698,7 @@ int tfs_seek(fileDescriptor FD, int offset) {
 	if (offset > inodePtr->size) {
 		return SEEK_FILE_FAILURE;
 	}
-	
+
 	dynamicResourcePtr->seekOffset = offset;
 
 	return SEEK_FILE_SUCCESS;
@@ -773,8 +786,6 @@ int tfs_readdir() {
 
 	blocks = fileSystemPtr->size / BLOCKSIZE;
 
-	printf("Listing all files in file system %s\n", fileSystemPtr->filename);
-
 	for(block = 0; block < blocks; block++) {
 		if((result = readBlock(fileSystemPtr->diskNum, block, data)) < 0) {
 			return result;		//	means error reading block
@@ -783,7 +794,7 @@ int tfs_readdir() {
 		if(data[0] == INODE) {
 			inodePtr = (Inode *)&data[2];
 
-			printf("File: %s\n", inodePtr->name);
+			printf("%s\n", inodePtr->name);
 		}
 	}
 
@@ -1071,23 +1082,20 @@ int renameDynamicResource(FileSystem *fileSystemPtr, int inodeBlockNum, char *ne
 	DynamicResourceNode *curr = fileSystemPtr->dynamicResourceTable;
 
 	if(fileSystemPtr->openCount == 0) {
-		printf("No open files to rename!\n");
-		return 1;
+		return RENAME_FILE_FAILURE;
 	}
 
 	while (curr != NULL) {
 		if(curr->dynamicResource->inodeBlockNum == inodeBlockNum) {
-			printf("Renaming dynamic resource for inode %d to %s\n", inodeBlockNum, newName);
 			strcpy(curr->dynamicResource->name, newName);
 
-			return 1;
+			return RENAME_FILE_SUCCESS;
 		}
 
 		curr = curr->next;
 	}
 
-	printf("No files with inode %d open\n", inodeBlockNum);
-	return -1;
+	return RENAME_FILE_FAILURE;
 }
 
 void getCurrentTime(char *timestamp) {

@@ -7,13 +7,13 @@ void libTinyFSTest();
 void libTinyFSCoreDemo();
 void fileRenameDemo();
 // void timeStampDemo();
-// void permissionsDemo();
+void permissionsDemo();
 
 int main(int argc, char *argv[]) {
 	libTinyFSCoreDemo();
 	fileRenameDemo();
+	permissionsDemo();
 	// timeStampDemo();
-	// permissionsDemo();
 
 	// libDiskTest();
 	// libTinyFSTest();
@@ -119,7 +119,66 @@ void libTinyFSCoreDemo() {
 }
 
 void fileRenameDemo() {
+	printf("\nFile Renaming and List Demonstration\n\n");
+
+	tfs_mkfs("testing/fileRename.bin", BLOCKSIZE * 10);
+
+	tfs_mount("testing/fileRename.bin");
 	
+	tfs_openFile("File 1");
+	tfs_openFile("File 2");
+	tfs_openFile("File 3");
+
+	printf("Listing files in filesystem:\n");
+	tfs_readdir();
+
+	printf("\nRenaming file 2... %d\n",
+		tfs_rename("File 2", "Renamed"));
+
+	printf("Listing files in filesystem:\n");
+	tfs_readdir();
+
+	printf("\nThrows an error if using too long of a name... %d\n",
+		tfs_rename("File 1", "this name is too long"));
+
+	printf("Throws an error if file does not exist... %d\n",
+		tfs_rename("DNE", "error"));
+
+	printf("Throws an error if trying to rename root... %d\n",
+		tfs_rename("/", "error"));
+}
+
+void permissionsDemo() {
+	int file1;
+
+	printf("\nFile RO/RW Permissions Demonstration\n\n");
+
+	tfs_mkfs("testing/filePermissions.bin", BLOCKSIZE * 10);
+
+	tfs_mount("testing/filePermissions.bin");
+
+	file1 = tfs_openFile("File 1");
+
+	printf("Making file read-only... %d\n",
+		tfs_makeRO("File 1"));
+
+	printf("Throws an error when writing to RO file... %d\n",
+		tfs_writeFile(file1, "should not be written", sizeof("should not be written")));
+
+	printf("Throws an error when deleting an RO file... %d\n",
+		tfs_deleteFile(file1));
+
+	printf("Throws an error when writing a byte an RO file... %d\n",
+		tfs_writeByte(file1, 88));
+
+	printf("Making file read-write... %d\n",
+		tfs_makeRW("File 1"));
+
+	printf("Writing to RW file... %d\n",
+		tfs_writeFile(file1, "should be written", sizeof("should be written")));
+
+	printf("Writing a byte to file... %d\n",
+		tfs_writeByte(file1, 88));
 }
 
 void libTinyFSTest() {

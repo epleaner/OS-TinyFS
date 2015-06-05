@@ -6,14 +6,14 @@ void libTinyFSTest();
 
 void libTinyFSCoreDemo();
 void fileRenameDemo();
-// void timeStampDemo();
+void timeStampDemo();
 void permissionsDemo();
 
 int main(int argc, char *argv[]) {
 	libTinyFSCoreDemo();
 	fileRenameDemo();
 	permissionsDemo();
-	// timeStampDemo();
+	timeStampDemo();
 
 	// libDiskTest();
 	// libTinyFSTest();
@@ -179,6 +179,32 @@ void permissionsDemo() {
 
 	printf("Writing a byte to file... %d\n",
 		tfs_writeByte(file1, 88));
+
+	printf("Deleting a file... %d\n",
+		tfs_deleteFile(file1));
+}
+
+void timeStampDemo() {
+	int file1, file2;
+
+	printf("\nFile TimeStamp Demonstration\n\n");
+
+	tfs_mkfs("testing/filePermissions.bin", BLOCKSIZE * 10);
+
+	tfs_mount("testing/filePermissions.bin");
+
+	file1 = tfs_openFile("File 1");
+
+	tfs_readFileInfo(file1);
+
+	printf("\nSleeping for 2 seconds...\n\n");
+
+	sleep(2);
+
+	file2 = tfs_openFile("File 2");
+
+	tfs_readFileInfo(file2);
+
 }
 
 void libTinyFSTest() {

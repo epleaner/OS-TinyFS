@@ -182,6 +182,7 @@ void permissionsDemo() {
 
 void timeStampDemo() {
 	int file1, file2;
+	char readByteBuffer;
 
 	printf("\nFile TimeStamp Demonstration\n\n");
 
@@ -200,4 +201,26 @@ void timeStampDemo() {
 	file2 = tfs_openFile("File 2");
 
 	tfs_readFileInfo(file2);
+
+	printf("\nSleeping for 2 seconds...\n\n");
+
+	sleep(2);
+
+	printf("Updating file 1 modify time...\n\n");
+	tfs_makeRW("File 1");
+
+	tfs_readFileInfo(file1);
+	
+
+	printf("\nSleeping for 2 seconds...\n\n");
+	sleep(2);
+
+	tfs_writeFile(file2, "write to closed", sizeof("write to closed"));
+	tfs_seek(file2, 0);
+	
+	printf("Updating file 2 access and modify time...\n\n");
+	tfs_readByte(file2, &readByteBuffer);
+
+	tfs_readFileInfo(file2);
+
 }

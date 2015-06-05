@@ -560,7 +560,6 @@ int tfs_deleteFile(fileDescriptor FD) {
 
 	char *modificationTimestamp;
 	modificationTimestamp = (char *) malloc(30);
-	printf("ATTEMPTING TO DELETE FILE\n");
 
 	if (dynamicResourcePtr == NULL) {
 		return DELETE_FILE_FAILURE;

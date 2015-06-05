@@ -26,9 +26,6 @@
 #define 	WRITE_FILE_FAILURE 	-9
 #define		MAKE_RO_FAILURE		-13
 #define		MAKE_RW_FAILURE		-14
-<<<<<<< HEAD
-#define		CLOSE_FILE_FAILURE	-15
-=======
 #define		MOUNT_FS_FAILURE	-15
 #define		UNMOUNT_FS_FAILURE	-16
 #define		CLOSE_FILE_FAILURE	-17
@@ -36,4 +33,3 @@
 #define		READ_FILE_INFO_FAILURE	-19
 #define		READ_DIR_FAILURE	-20
 #define		REMOVE_DYNAMIC_RESOURCE_ERROR	-21
->>>>>>> 1c248e29e5c7d94becc6dd15d294ba35040d9cf3

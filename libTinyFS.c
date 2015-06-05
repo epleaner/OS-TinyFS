@@ -409,11 +409,7 @@ int tfs_makeRO(char *name) {
 	}
 
 	inodePtr = (Inode *)&inodeBuf[2];
-<<<<<<< HEAD
 	inodePtr->modificationTimestamp = modificationTimestamp;
-	printf("file's current perm is %d\n", inodePtr->filePermission);
-=======
->>>>>>> fc2c3cf76d3dcffff9a0a2086ce318cbf6b4af64
 	inodePtr->filePermission = READONLY;
 
 	memcpy(&inodeBuf[2], inodePtr, sizeof(Inode));
@@ -435,14 +431,10 @@ int tfs_makeRW(char *name) {
 	getCurrentTime(modificationTimestamp);
 
 	fileSystemPtr = findFileSystem(mountedFsName);
-<<<<<<< HEAD
-=======
-
 	if(fileSystemPtr == NULL) {
 		return MAKE_RW_FAILURE;
 	}
 
->>>>>>> 1c248e29e5c7d94becc6dd15d294ba35040d9cf3
 	inodeBlockNum = findFile(*fileSystemPtr, name);
 
 	if (readBlock(fileSystemPtr->diskNum, inodeBlockNum, inodeBuf) < 0) {
@@ -450,11 +442,7 @@ int tfs_makeRW(char *name) {
 	}
 
 	inodePtr = (Inode *)&inodeBuf[2];
-<<<<<<< HEAD
 	inodePtr->modificationTimestamp = modificationTimestamp;
-	printf("file's current perm is %d\n", inodePtr->filePermission);
-=======
->>>>>>> fc2c3cf76d3dcffff9a0a2086ce318cbf6b4af64
 	inodePtr->filePermission = READWRITE;
 	memcpy(&inodeBuf[2], inodePtr, sizeof(Inode));
 
@@ -552,12 +540,8 @@ int tfs_deleteFile(fileDescriptor FD) {
 	char buf[BLOCKSIZE];
 	char timeInode[BLOCKSIZE];
 	char *clearBuf = calloc(1, BLOCKSIZE);
-<<<<<<< HEAD
 	char *modificationTimestamp;
 	modificationTimestamp = (char *) malloc(30);
-	printf("ATTEMPTING TO DELETE FILE\n");
-=======
->>>>>>> 1c248e29e5c7d94becc6dd15d294ba35040d9cf3
 
 	if (dynamicResourcePtr == NULL) {
 		return DELETE_FILE_FAILURE;

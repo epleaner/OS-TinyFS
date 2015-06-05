@@ -100,8 +100,7 @@ Disk *findDisk(int diskNum) {
 	DiskNode *curr = head;
 	
 	if(curr == NULL) {
-		printf("No disks made yet\n");
-		exit(-1);
+		return NULL;
 	}
 	
 	else {
@@ -113,8 +112,7 @@ Disk *findDisk(int diskNum) {
 			if(curr->disk->diskNum == diskNum) return curr->disk;
 		}
 		
-		printf("No disks found\n");
-		exit(-1);
+		return NULL;
 	}
 }
 
@@ -133,7 +131,7 @@ int readBlock(int disk, int bNum, void *block) {
 	
 	diskPtr = findDisk(disk);
 	
-	if(!diskPtr->open) {
+	if(diskPtr == NULL || !diskPtr->open) {
 		return READBLOCK_FAILURE;
 	}
 	
@@ -167,7 +165,7 @@ int writeBlock(int disk, int bNum, void *block) {
 	
 	diskPtr = findDisk(disk);
 	
-	if(!diskPtr->open) {
+	if(diskPtr == NULL || !diskPtr->open) {
 		return WRITEBLOCK_FAILURE;
 	}
 	
@@ -197,7 +195,7 @@ void closeDisk(int disk) {
 	
 	diskPtr = findDisk(disk);
 	
-	if(!diskPtr->open) {
+	if(diskPtr == NULL || !diskPtr->open) {
 		return;
 	}
 		

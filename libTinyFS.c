@@ -415,8 +415,6 @@ int tfs_makeRO(char *name) {
 	inodePtr = (Inode *)&inodeBuf[2];
 
 	inodePtr->modificationTimestamp = modificationTimestamp;
-	printf("file's current perm is %d\n", inodePtr->filePermission);
-
 
 	inodePtr->modificationTimestamp = modificationTimestamp;
 	inodePtr->filePermission = READONLY;
@@ -454,8 +452,6 @@ int tfs_makeRW(char *name) {
 	inodePtr = (Inode *)&inodeBuf[2];
 
 	inodePtr->modificationTimestamp = modificationTimestamp;
-	printf("file's current perm is %d\n", inodePtr->filePermission);
-
 
 	inodePtr->modificationTimestamp = modificationTimestamp;
 
@@ -656,8 +652,6 @@ int tfs_readByte(fileDescriptor FD, char *buffer) {
 	}
 	offset = dynamicResourcePtr->seekOffset / (BLOCKSIZE-2);
 	tmpPtr = inodePtr->dataBlocks;
-
-	//printf("need to move %d blocks in. seek offset: %d\n", offset, dynamicResourcePtr->seekOffset);
 
 	while (offset > 0) {
 		tmpPtr = tmpPtr->next;

@@ -230,7 +230,7 @@ void timeStampDemo() {
 
 	printf("\nSleeping for 2 seconds...\n\n");
 	sleep(2);
-	tfs_rename("File 1", "File 3");
+	tfs_rename("File 1", "File 1A");
 
 	printf("Updating file 1 modify time when changing file name...\n\n");
 	tfs_readFileInfo(file1);

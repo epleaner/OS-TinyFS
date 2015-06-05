@@ -115,6 +115,10 @@ int tfs_mount(char *filename) {
 	//	find file system by name
 	fileSystemPtr = findFileSystem(filename);
 
+	if(fileSystemPtr == NULL) {
+		return MOUNT_FS_FAILURE;
+	}
+
 	//	verify
 	if(verifyFileSystem(*fileSystemPtr) < 0) {
 		return FS_VERIFY_FAILURE;
@@ -132,11 +136,15 @@ int tfs_unmount() {
 	FileSystem *fileSystemPtr;
 
 	if(mountedFsName == NULL) {
-		return UNMOUNT_FS_SUCCESS;
+		return UNMOUNT_FS_FAILURE;
 	}
 	
 	//	find file system by name
 	fileSystemPtr = findFileSystem(mountedFsName);
+
+	if(fileSystemPtr == NULL) {
+		return UNMOUNT_FS_FAILURE;
+	}
 
 	//	set mounted to false, and clear mounted FS name
 	fileSystemPtr->mounted = 0;
@@ -166,13 +174,16 @@ fileDescriptor tfs_openFile(char *name) {
 	getCurrentTime(accessTimestamp);
 
 	if(strlen(name) > 8) {
-		printf("Filename must be 8 or less characters.\n");
 		return OPEN_FILE_FAILURE;
 	}
 
 	strcpy(permName, name);
 
 	fileSystemPtr = findFileSystem(mountedFsName);
+
+	if(fileSystemPtr == NULL) {
+		return OPEN_FILE_FAILURE;
+	}
 
 	if((inodeBlockNum = findFile(*fileSystemPtr, name)) < 0) {
 
@@ -221,6 +232,10 @@ int tfs_closeFile(fileDescriptor FD) {
 
 	fileSystemPtr = findFileSystem(mountedFsName);
 
+	if(fileSystemPtr == NULL) {
+		return CLOSE_FILE_FAILURE;
+	}
+
 	return removeDynamicResource(fileSystemPtr, FD);
 }
 
@@ -237,16 +252,19 @@ int tfs_closeFile(fileDescriptor FD) {
  	int blockNum, written = 0, writeSize, blockOffset;
 
  	fileSystemPtr = findFileSystem(mountedFsName);
+
+ 	if(fileSystemPtr == NULL) {
+		return WRITE_FILE_FAILURE;
+	}
+
  	dynamicResourcePtr = findResource(fileSystemPtr->dynamicResourceTable, FD);
 
  	//	dynamic resource doesnt exist, which means file isn't open
  	if(dynamicResourcePtr == NULL) {
- 		printf("File %d is not open to write.\n", FD);
  		return WRITE_FILE_FAILURE;
  	}
 
  	if(tfs_deleteFile(FD) < 0) {
- 		printf("Delete file error\n");
  		return WRITE_FILE_FAILURE;
  	}
 
@@ -258,7 +276,6 @@ int tfs_closeFile(fileDescriptor FD) {
  	inodePtr = (Inode *) &inodeData[2];
 
  	if (inodePtr->filePermission == READONLY) {
- 		printf("Do not have permission to write\n");
  		return WRITE_FILE_FAILURE;
  	}
 
@@ -296,8 +313,6 @@ int tfs_closeFile(fileDescriptor FD) {
 		//	adjust for when there is not much data left to write
 		if(size - written < writeSize) writeSize = size - written;
 
-		printf("will write %d from buffer at block offset %d into block num %d\n", writeSize, blockOffset + 2, currBlock->blockNum);
-
 		//	write buffer into data that will go into block
 		memcpy(&data[2 + blockOffset], buffer, writeSize);
 
@@ -311,10 +326,7 @@ int tfs_closeFile(fileDescriptor FD) {
 		dynamicResourcePtr->seekOffset += writeSize;
 
 		if(size - written > 0) {
-			printf("theres more data, so get another block\n");
-
 			blockNum = getFreeBlock(fileSystemPtr);
-			printf("next free block gotten is %d\n", blockNum);
 
 			currBlock->next = malloc(sizeof(BlockNode));
 			*currBlock->next = (BlockNode) {
@@ -324,13 +336,10 @@ int tfs_closeFile(fileDescriptor FD) {
 
 			currBlock = currBlock->next;
 		}
-		printf("have written in total %d bytes\n", written);
  	}
 
  	dynamicResourcePtr->seekOffset = 0;
  	inodePtr->size = written;
-
- 	printf("inode pointers size is now %d\n", inodePtr->size);
 
  	//	write back changes to inode block
  	if(writeBlock(fileSystemPtr->diskNum, dynamicResourcePtr->inodeBlockNum, inodeData) < 0) {
@@ -362,6 +371,10 @@ int tfs_makeRO(char *name) {
 
 	fileSystemPtr = findFileSystem(mountedFsName);
 
+	if(fileSystemPtr == NULL) {
+		return MAKE_RO_FAILURE;
+	}
+
 	inodeBlockNum = findFile(*fileSystemPtr, name);
 
 	if (readBlock(fileSystemPtr->diskNum, inodeBlockNum, inodeBuf) < 0) {
@@ -386,6 +399,10 @@ int tfs_makeRW(char *name) {
 	Inode *inodePtr;
 
 	fileSystemPtr = findFileSystem(mountedFsName);
+
+	if(fileSystemPtr == NULL) {
+		return MAKE_RW_FAILURE;
+	}
 
 	inodeBlockNum = findFile(*fileSystemPtr, name);
 
@@ -413,10 +430,14 @@ int tfs_writeByte(fileDescriptor FD, unsigned int data) {
 	int offset;
 
 	fileSystemPtr = findFileSystem(mountedFsName);
+
+	if(fileSystemPtr == NULL) {
+		return WRITE_BYTE_FAILURE;
+	}
+
 	dynamicResourcePtr = findResource(fileSystemPtr->dynamicResourceTable, FD);
 
 	if (dynamicResourcePtr == NULL) {
-		printf("file is not open for writing\n");
 		return -1;
 	}
 
@@ -427,14 +448,12 @@ int tfs_writeByte(fileDescriptor FD, unsigned int data) {
  	inodePtr = (Inode *)&inodeData[2];
 
  	if (inodePtr->filePermission == READONLY) {
- 		printf("Do not have permissions to write to this file\n");
 		return DELETE_FILE_FAILURE;
 	}
 
  	tmpPtr = inodePtr->dataBlocks;
 
  	if (dynamicResourcePtr->seekOffset > inodePtr->size) {
-		printf("READING PAST FILE\n");
 		return READ_BYTE_FAILURE;
 	}
 
@@ -464,12 +483,16 @@ int tfs_writeByte(fileDescriptor FD, unsigned int data) {
  */
 int tfs_deleteFile(fileDescriptor FD) {
 	FileSystem *fileSystemPtr = findFileSystem(mountedFsName);
+
+	if(fileSystemPtr == NULL) {
+		return DELETE_FILE_FAILURE;
+	}
+
 	DynamicResource *dynamicResourcePtr = findResource(fileSystemPtr->dynamicResourceTable, FD);
 	Inode *inodePtr;
 	BlockNode *tmpPtr;
 	char buf[BLOCKSIZE];
 	char *clearBuf = calloc(1, BLOCKSIZE);
-	printf("ATTEMPTING TO DELETE FILE\n");
 
 	if (dynamicResourcePtr == NULL) {
 		return DELETE_FILE_FAILURE;
@@ -482,7 +505,6 @@ int tfs_deleteFile(fileDescriptor FD) {
 	inodePtr = (Inode *)&buf[2];
 
 	if (inodePtr->filePermission == READONLY) {
- 		printf("Do not have permission to delete\n");
 		return DELETE_FILE_FAILURE;
 	}
 
@@ -499,7 +521,6 @@ int tfs_deleteFile(fileDescriptor FD) {
 	freeDataBlocks(inodePtr->dataBlocks);
 	inodePtr->dataBlocks = NULL;
 	inodePtr->size = 0;
-	printf("DELETE SUCCESS!\n");
 	return DELETE_FILE_SUCCESS;
 }
 
@@ -523,6 +544,11 @@ void freeDataBlocks(BlockNode *blockHead) {
  */
 int tfs_readByte(fileDescriptor FD, char *buffer) {
 	FileSystem *fileSystemPtr = findFileSystem(mountedFsName);
+
+	if(fileSystemPtr == NULL) {
+		return READ_BYTE_FAILURE;
+	}
+
 	DynamicResource *dynamicResourcePtr = findResource(fileSystemPtr->dynamicResourceTable, FD);
 	Inode *inodePtr;
 	BlockNode *tmpPtr;
@@ -540,7 +566,6 @@ int tfs_readByte(fileDescriptor FD, char *buffer) {
 	inodePtr = (Inode *)&buf[2];
 
 	if (dynamicResourcePtr->seekOffset > inodePtr->size) {
-		printf("READING PAST FILE\n");
 		return READ_BYTE_FAILURE;
 	}
 	offset = dynamicResourcePtr->seekOffset / (BLOCKSIZE-2);
@@ -568,30 +593,29 @@ int tfs_readByte(fileDescriptor FD, char *buffer) {
 /* change the file pointer location to offset (absolute). Returns success/error codes. */
 int tfs_seek(fileDescriptor FD, int offset) {
 	FileSystem *fileSystemPtr = findFileSystem(mountedFsName);
+
+	if(fileSystemPtr == NULL) {
+		return SEEK_FILE_FAILURE;
+	}
+
 	DynamicResource *dynamicResourcePtr = findResource(fileSystemPtr->dynamicResourceTable, FD);
 	Inode *inodePtr;
 	BlockNode *tmpPtr;
     char buf[BLOCKSIZE];
 
-    printf("SEEKING FILE\n");
 	if (dynamicResourcePtr == NULL) {
-		printf("FILE NOT FOUND\n");
 		return SEEK_FILE_FAILURE;
 	}
 	if (readBlock(fileSystemPtr->diskNum, dynamicResourcePtr->inodeBlockNum, buf) < 0) {
-		printf("SEEK FAIL\n");
 		return SEEK_FILE_FAILURE;
 	}
 
 	inodePtr = (Inode *)&buf[2];
 	if (offset > inodePtr->size) {
-		printf("ERROR: seeking past file size\n");
-		printf("seek max is %d\n", inodePtr->size);
 		return SEEK_FILE_FAILURE;
 	}
-	printf("SEEK IS %d\n", dynamicResourcePtr->seekOffset);
+	
 	dynamicResourcePtr->seekOffset = offset;
-	printf("SEEK IS NOW %d\n", dynamicResourcePtr->seekOffset);
 
 	return SEEK_FILE_SUCCESS;
 }
@@ -604,6 +628,10 @@ int tfs_readFileInfo(fileDescriptor FD) {
     char buf[BLOCKSIZE];
 
 	fileSystemPtr = findFileSystem(mountedFsName);
+
+	if(fileSystemPtr == NULL) {
+		return READ_FILE_INFO_FAILURE;
+	}
 
 	dynamicResourcePtr = findResource(fileSystemPtr->dynamicResourceTable, FD);
 
@@ -642,6 +670,10 @@ int tfs_rename(char *oldName, char *newName) {
 
 	fileSystemPtr = findFileSystem(mountedFsName);
 
+	if(fileSystemPtr == NULL) {
+		return RENAME_FILE_FAILURE;
+	}
+
 	inodeBlockNum = findFile(*fileSystemPtr, oldName);
 
 	if(inodeBlockNum < 0) {
@@ -663,6 +695,10 @@ int tfs_readdir() {
 	int block, blocks, result;
 
 	fileSystemPtr = findFileSystem(mountedFsName);
+
+	if(fileSystemPtr == NULL) {
+		return READ_DIR_FAILURE;
+	}
 
 	blocks = fileSystemPtr->size / BLOCKSIZE;
 
@@ -786,8 +822,7 @@ void addFileSystem(FileSystem fileSystem) {
 FileSystem *findFileSystem(char *filename) {
 	FileSystemNode *curr = fsHead;
 	if(curr == NULL) {
-		printf("No filesystems made yet\n");
-		exit(-1);
+		return NULL;
 	}
 	
 	else {
@@ -799,8 +834,7 @@ FileSystem *findFileSystem(char *filename) {
 			if(strcmp(curr->fileSystem->filename, filename) == 0) return curr->fileSystem;
 		}
 		
-		printf("No file systems found with filename %s\n", filename);
-		exit(-1);
+		return NULL;
 	}
 }
 
@@ -905,38 +939,37 @@ int addDynamicResource(FileSystem *fileSystemPtr, DynamicResource dynamicResourc
 }
 
 int removeDynamicResource(FileSystem *fileSystem, fileDescriptor FD) {
-	DynamicResourceNode *temp, *curr;
+	DynamicResourceNode *temp, *prev, *curr;
 
 	curr = fileSystem->dynamicResourceTable;
 
 	if(curr == NULL) {
-		printf("No dynamic resources for this filesystem made yet\n");
-		return -1;
+		return REMOVE_DYNAMIC_RESOURCE_ERROR;
 	}
 	
 	else {
 		if(curr->dynamicResource->FD == FD) {
 			temp = curr;
-			curr = curr->next;
+			fileSystem->dynamicResourceTable = curr->next;
 			free(temp);
 
 			return 1;
 		}
 
 		while(curr->next != NULL) {
+			prev = curr;
 			curr = curr->next;
 
 			if(curr->dynamicResource->FD == FD) {
 				temp = curr;
-				curr = curr->next;
+				prev->next = curr->next;
 				free(temp);
 
 				return 1;
 			}
 		}
 		
-		printf("No dynamic resources found with FD %d\n", FD);
-		return -1;
+		return REMOVE_DYNAMIC_RESOURCE_ERROR;
 	}
 }
 
